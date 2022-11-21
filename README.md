@@ -13,7 +13,7 @@ Shell tools for various tasks on Check Point products.
 del_unused_gen.sh
 ```
 
-Creates directories `del_list-000000` and possibly following numbers. Directories are containing UUIDs of unused objects, sorted into files by object type. `list.json` contains all the unused objects with details.
+Creates numbered directories `del_list-nnnnnn`. Directories contain UUIDs of unused objects, sorted into files by object type. `list.json` contains all the unused objects with details. By default new directory is created for every 500 objects.
 
 ```sh
 del_unused_del.sh del_list-000000
