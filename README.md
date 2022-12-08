@@ -26,3 +26,7 @@ del_unused_del.sh --del del_list-000000
 ```
 
 Performs the deletions of the objects.
+
+## `logs`
+
+* `daily_storage.sh` --- Show $FWDIR/log disk space use by traffic logs per day.
