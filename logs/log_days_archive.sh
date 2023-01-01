@@ -10,9 +10,10 @@
 
 # Excel to compute archive size in percent:
 # =($C1 / $B1 / 10)
+# The size is in 1000 B, the archive size is in B.
 
 # Running in the background:
-# nohup log_days_archive.sh &> log_sizes.csv &
+# nohup log_days_archive.sh </dev/null &> log_sizes.csv &
 # It seems that using stdbuf -oL is not needed for line buffering.
 
 # The script relies on the default file naming. File names cannot contain spaces.
