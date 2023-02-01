@@ -33,12 +33,12 @@ days=$(
     find . -name '*.log*' |
     sed -nE 's%^\./(.+__)?([0-9]{4}-[0-9]{2}-[0-9]{2})_.*\.log.*%\2%p' |
     sort -u)
- 
+
 # Print the number of days.
 if test "$1" = -d ; then
     echo "$days" | wc -l
 fi
- 
+
 # Print size of logs per day in kB.
 for day in $days ; do
     printf "%s$SEPARATOR%s$SEPARATOR%s$SEPARATOR%s\\n" "$day" \
