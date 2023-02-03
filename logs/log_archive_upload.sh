@@ -38,6 +38,12 @@ hostname="$(hostname -s)"
 
 ISO_DATE_ERE='[0-9]{4}-[0-9]{2}-[0-9]{2}'
 
+# get parameters override
+script_dir=$(dirname "$(readlink -f "$0")")
+if test -r "$script_dir/${prog_name}_conf.sh" ; then
+    . "$script_dir/${prog_name}_conf.sh"
+fi
+
 # --------- functions
 
 # Print error message and exit the program.
