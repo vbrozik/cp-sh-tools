@@ -168,8 +168,11 @@ for date in $days_to_upload ; do
         break
     fi
 
-    if ! printf '@put %s\n' "$tmp_dir/$arch_name.tgz" |
-            sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" ; then
+    # Using @ prefix to quiet commands is available only in newer versions of sftp
+    if ! printf 'put %s\n' "$tmp_dir/$arch_name.tgz" |
+            nice -n19 ionice -c3 \
+            sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" >/dev/null
+    then
         printf '%s\n' "=== upload failed, quitting for now" >> "$last_dates"
         log "Upload failed for $arch_name.tgz. Quitting for now."
         rm "$tmp_dir/$arch_name.tgz"
