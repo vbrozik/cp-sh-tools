@@ -159,8 +159,8 @@ for date in $days_to_upload ; do
     nice -n19 ionice -c3 tar -czf "$tmp_dir/$arch_name.tgz" ./*"$date"_*.log*
     file_size="$(( $(stat -c%b "$tmp_dir/$arch_name.tgz") * file_block_size ))"
     remote_free="$(
-        ssh -o LogLevel=error "$upload_target" df -B1 --output=avail "$upload_dir/" |
-        sed 1d)"
+        ssh -oLogLevel=error "$upload_target" df -B1 --output=avail "$upload_dir/" |
+        sed 1d )"
     if test "$((file_size + upload_keep_free))" -ge "$remote_free" ; then
         printf '%s\n' "=== no space on upload target, quitting for now" >> "$last_dates"
         log "Not enough disk space on upload target $remote_free. Quitting for now."
