@@ -175,12 +175,21 @@ for date in $days_to_upload ; do
         break
     fi
 
-    # Using @ prefix to quiet commands is available only in newer versions of sftp
-    if ! printf 'put %s\n' "$tmp_dir/$arch_name.tgz" |
+    # NOTE: Using @ prefix to quiet commands is available only in newer versions of sftp
+    if ! printf 'put %s %s\n' "$tmp_dir/$arch_name.tgz" "$arch_name.tgz.incomplete" |
             nice -n19 ionice -c3 \
             sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" >/dev/null
     then
         printf '%s\n' "=== upload failed, quitting for now" >> "$last_dates"
+        log "Upload failed for $arch_name.tgz. Quitting for now."
+        rm "$tmp_dir/$arch_name.tgz"
+        break
+    fi
+
+    if ! printf 'rename %s %s\n' "$arch_name.tgz.incomplete" "$arch_name.tgz" |
+            sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" >/dev/null
+    then
+        printf '%s\n' "=== rename after upload failed, quitting for now" >> "$last_dates"
         log "Upload failed for $arch_name.tgz. Quitting for now."
         rm "$tmp_dir/$arch_name.tgz"
         break
