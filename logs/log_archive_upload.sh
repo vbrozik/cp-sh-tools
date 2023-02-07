@@ -10,6 +10,12 @@
 #   TODO: next_day=$(date -d "$day + 1 day" +%Y-%m-%d)
 # * No protection against parallel running of multiple instances of the script
 #   which will most probably cause failures.
+#   TODO: Implement locking with reliable removal of stale lock and stale
+#   process.
+# * No high availability of upload targets.
+#   TODO: Allow specifying multiple targets. Upload to the available one.
+# * Only most CPU and disk intensive commands are run with lowered priority.
+#   TODO: Allow lowering priority of the whole script.
 
 
 # shellcheck source=/dev/null
