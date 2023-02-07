@@ -156,6 +156,7 @@ log_uploads () {
 }
 
 # Upload logs as tar archives.
+rm "$tmp_dir/"*
 file_block_size="$(stat -c%B "$tmp_dir/")"
 uploaded_count=0
 last_uploaded=none
