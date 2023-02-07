@@ -8,6 +8,8 @@
 #   This is because the sequence of dates is created only from dates
 #   of existing logs.
 #   TODO: next_day=$(date -d "$day + 1 day" +%Y-%m-%d)
+# * No protection against parallel running of multiple instances of the script
+#   which will most probably cause failures.
 
 
 # shellcheck source=/dev/null
