@@ -50,6 +50,10 @@ for offset in $(seq -w 0 "$step" 999999) ; do
     fi
     cd "$name/" || exit 1
     mgmt_cli -f json show unused-objects limit "$step" offset "$offset" >"$list_json_file" || exit 1
+    # TODO:
+    #   The command "show unused-objects" could be extended by parameter "filter" with possibility
+    #   to filter the unused objects by tags.
+    #   https://sc1.checkpoint.com/documents/latest/APIs/#cli/show-unused-objects
     total="$(jq .total "$list_json_file")"
     from="$(jq .from "$list_json_file")"
     to="$(jq .to "$list_json_file")"
