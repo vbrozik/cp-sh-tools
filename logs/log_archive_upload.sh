@@ -111,6 +111,13 @@ list_to_lines () {
     printf %s "$1" | tr \\n ' '
 }
 
+# Delete the files which exist.
+rm_if_exists () {
+    for file in "$@" ; do
+        test -e "$file" && rm "$file"
+    done
+}
+
 # endregion: common functions -----------------------------------------------
 
 # --------- the program
@@ -187,42 +194,50 @@ last_uploaded=none
 printf '=== uploading %s\n' "$(date +%Y-%m-%d)" >> "$last_dates"
 trap log_uploads INT
 for date in $days_to_upload ; do
-    printf 'Uploading %s\n' "$date"
+    printf 'Uploading day %s\n' "$date"
 
-    arch_name="${date}_$hostname"
-    nice -n19 ionice -c3 tar -czf "$tmp_dir/$arch_name.tgz" ./*"$date"_*.log*
-    file_size="$(( $(stat -c%b "$tmp_dir/$arch_name.tgz") * file_block_size ))"
+    arch_name="${date}_$hostname.tgz"
+    arch_name_incomplete="$arch_name.incomplete"
+    full_arch_name="$tmp_dir/$arch_name"
+    nice -n19 ionice -c3 tar -czf "$full_arch_name" ./*"$date"_*.log*
+    if test "$?" -ne 0 ; then
+        test -e "$full_arch_name" && rm "$full_arch_name"
+        log "Tar failed for $full_arch_name. Quitting for now."
+        break
+    fi
+    file_size="$(( $(stat -c%b "$full_arch_name") * file_block_size ))"
     remote_free="$(
         ssh -oLogLevel=error "$upload_target" df -B1 --output=avail "$upload_dir/" |
         sed 1d )"
     if test "$((file_size + upload_keep_free))" -ge "$remote_free" ; then
         printf '%s\n' "=== no space on upload target, quitting for now" >> "$last_dates"
         log "Not enough disk space on upload target $remote_free. Quitting for now."
-        rm "$tmp_dir/$arch_name.tgz"
+        rm "$full_arch_name"
         break
     fi
 
-    # NOTE: Using @ prefix to quiet commands is available only in newer versions of sftp
-    if ! printf 'put %s %s\n' "$tmp_dir/$arch_name.tgz" "$arch_name.tgz.incomplete" |
+    # NOTE: Using @ prefix to quiet batch commands is available only since OpenSSH 7.9.
+    # Gaia R81.10 contains OpenSSH 7.8.
+    if ! printf 'put %s %s\n' "$full_arch_name" "$arch_name_incomplete" |
             nice -n19 ionice -c3 \
             sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" >/dev/null
     then
         printf '%s\n' "=== upload failed, quitting for now" >> "$last_dates"
-        log "Upload failed for $arch_name.tgz. Quitting for now."
-        rm "$tmp_dir/$arch_name.tgz"
+        log "Upload failed for $full_arch_name. Quitting for now."
+        rm "$full_arch_name"
         break
     fi
 
-    if ! printf 'rename %s %s\n' "$arch_name.tgz.incomplete" "$arch_name.tgz" |
+    if ! printf 'rename %s %s\n' "$arch_name_incomplete" "$arch_name" |
             sftp -oLogLevel=error -b- "$upload_target":"$upload_dir/" >/dev/null
     then
         printf '%s\n' "=== rename after upload failed, quitting for now" >> "$last_dates"
-        log "Upload failed for $arch_name.tgz. Quitting for now."
-        rm "$tmp_dir/$arch_name.tgz"
+        log "Upload failed for $full_arch_name. Quitting for now."
+        rm_if_exists "$full_arch_name"
         break
     fi
 
-    rm "$tmp_dir/$arch_name.tgz"
+    rm_if_exists "$full_arch_name"
 
     last_uploaded="$date"
     printf '%s\n' "$last_uploaded" >> "$last_dates"
