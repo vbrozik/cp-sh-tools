@@ -53,7 +53,7 @@ hostname="$(hostname -s)"
 ISO_DATE_ERE='[0-9]{4}-[0-9]{2}-[0-9]{2}'
 
 # get parameters override
-script_dir=$(dirname "$(readlink -f "$0")")
+script_dir="$(dirname "$(readlink -f "$0")")"
 if test -r "$script_dir/${prog_name}_conf.sh" ; then
     # shellcheck source=/dev/null
     . "$script_dir/${prog_name}_conf.sh"
@@ -177,8 +177,11 @@ log_uploads () {
 }
 
 # Upload logs as tar archives.
-rm "$tmp_dir/"*
+if test -n "$(ls -A "$tmp_dir/")" ; then
+    rm "$tmp_dir/"*
+fi
 file_block_size="$(stat -c%B "$tmp_dir/")"
+test "$?" -ne 0 && errexit "Cannot get block size of $tmp_dir/."
 uploaded_count=0
 last_uploaded=none
 printf '=== uploading %s\n' "$(date +%Y-%m-%d)" >> "$last_dates"
