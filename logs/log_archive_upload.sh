@@ -1,7 +1,11 @@
 #!/bin/sh
 
 # log_archive_upload.sh
-# This program uploads logs to an archive.
+#
+# This program uploads logs to an archive directory on a remote system.
+#
+# On the remote system the logs are supposed to be uploaded to a cloud storage
+# service using a separate program cloud_uploader.sh.
 
 # Limitations:
 # * The algorithm expects that for every day there will be at least some logs.
@@ -17,11 +21,13 @@
 # * Only most CPU and disk intensive commands are run with lowered priority.
 #   TODO: Allow lowering priority of the whole script.
 
+# Author:  Václav Brožík
+
 
 # shellcheck source=/dev/null
 . /etc/profile.d/CP.sh
 
-# ---------- parameters
+# region: configuration -----------------------------------------------
 
 # directory containing logs and working files:
 work_dir=/var/log/log_arch
@@ -53,7 +59,9 @@ if test -r "$script_dir/${prog_name}_conf.sh" ; then
     . "$script_dir/${prog_name}_conf.sh"
 fi
 
-# --------- functions
+# endregion: configuration -----------------------------------------------
+
+# region: common functions -----------------------------------------------
 
 # Print error message and exit the program.
 errexit () {
@@ -102,6 +110,8 @@ contains () {
 list_to_lines () {
     printf %s "$1" | tr \\n ' '
 }
+
+# endregion: common functions -----------------------------------------------
 
 # --------- the program
 
@@ -153,6 +163,7 @@ if test -z "$days_to_upload" ; then
     exit 0
 fi
 
+# Show what was uploaded in case of interruption.
 log_uploads () {
     log \
         "INFO: Uploaded $uploaded_count log dates"\

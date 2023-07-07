@@ -1,13 +1,25 @@
 #!/bin/sh
 
 # cloud_uploader.sh
+#
 # This program uploads files to a cloud storage.
+#
+# The program is intended to be run as a cron job on a server that has access
+# to the cloud storage service (AWS S3). The upload task is separated from
+# the log collection to allow to run the Check Point log server on a machine
+# without access to these cloud services. There
+# the script log_archive_upload.sh is supposed to be run as a cron job.
 
 # Supported:
 # * Amazon S3
 
 # References:
 # * https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/index.html
+
+# Author:  Václav Brožík
+
+
+# region: configuration -----------------------------------------------
 
 work_dir=
 incoming_dir=
@@ -29,7 +41,9 @@ if test -r "$script_dir/${prog_name}_conf.sh" ; then
     . "$script_dir/${prog_name}_conf.sh"
 fi
 
-# --------- common functions
+# endregion: configuration -----------------------------------------------
+
+# region: common functions -----------------------------------------------
 
 # Print error message and exit the program.
 errexit () {
@@ -72,6 +86,8 @@ log () {
 aws_s3 () {
     aws s3 --endpoint-url "$aws_endpoint" "$@"
 }
+
+# endregion: common functions -----------------------------------------------
 
 # ------------- The program
 
