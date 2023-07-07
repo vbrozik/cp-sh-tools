@@ -115,13 +115,17 @@ list_to_lines () {
 
 # --------- the program
 
-if ! test -e "$work_dir" ; then
+log "INFO: Program started."
+
+if ! test -e "$work_dir/" ; then
     mkdir -p "$work_dir/" || errexit "Creating work directory $work_dir failed."
-    mkdir -p "$tmp_dir" || errexit "Creating tmp directory $tmp_dir failed."
     log "INFO: Missing work directory $work_dir was created."
 fi
 
-log "INFO: Program started."
+if ! test -e "$tmp_dir/" ; then
+    mkdir -p "$tmp_dir/" || errexit "Creating tmp directory $tmp_dir failed."
+    log "INFO: Missing tmp directory $tmp_dir was created."
+fi
 
 cd "$FWDIR/log/" || errexit "Change to Check Point log directory failed."
  
