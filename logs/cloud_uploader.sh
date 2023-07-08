@@ -21,22 +21,24 @@
 
 # region: configuration -----------------------------------------------
 
+# program name:
+prog_name=cloud_uploader
+
+# These parameters must be set in the configuration file or here:
 work_dir=
-incoming_dir=
 aws_endpoint=
 aws_bucket=
 aws_destination="s3://$aws_bucket/"
+incoming_dir="$work_dir/log"
 log_dir="$work_dir/log"
-log_file="$log_dir/cloud_uploader.log"
+log_file="$log_dir/$prog_name.log"
+
 suffix_upload=.tgz
+config_file="${prog_name}_conf.sh"
 
-
-# program name, host name:
-prog_name=cloud_uploader
-
-# get parameters override
-script_dir=$(dirname "$(readlink -f "$0")")
-if test -r "$script_dir/${prog_name}_conf.sh" ; then
+# get parameters override from a configuration file
+script_dir="$(dirname "$(readlink -f "$0")")"
+if test -r "$script_dir/${config_file}" ; then
     # shellcheck source=/dev/null
     . "$script_dir/${prog_name}_conf.sh"
 fi
