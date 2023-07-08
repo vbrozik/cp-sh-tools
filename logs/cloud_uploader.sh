@@ -97,7 +97,8 @@ mkdir -p "$log_dir" || errexit "Cannot create log dir $log_dir."
 cd "$incoming_dir" || errexit "Cannot change to incoming dir $incoming_dir."
 
 for file in ./*"$suffix_upload" ; do
-    if aws_s3 --quiet mv "$file" "$aws_destination" 2>>"$log_file" ; then
+    test -f "$file" || continue     # avoid failure on no match
+    if aws_s3 --quiet mv "$file" "$aws_destination" 2>> "$log_file" ; then
         log "Uploaded $file"
     else
         log "Failed upload of $file"
