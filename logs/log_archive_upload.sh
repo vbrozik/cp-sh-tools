@@ -13,6 +13,45 @@
 # Arguments:
 #   -n | --dry-run   Do not upload anything, just show what would be uploaded.
 
+# Installation:
+if false ; then     # installation commands, do not execute in this file
+
+bin_dir=/opt/NTT/bin
+
+mkdir -p "$bin_dir/"
+
+# TODO: Avoid bypassing certificate validation (-k).
+# curl 7.61 in Gaia R81.10 does not support --output-dir (added in 7.73)
+# curl --output-dir "$bin_dir/" -O ...
+(
+cd "$bin_dir/" &&
+curl -k -O \
+    https://raw.githubusercontent.com/vbrozik/cp-sh-tools/main/logs/log_archive_upload.sh
+)
+
+chmod +x "$bin_dir/log_archive_upload.sh"
+
+cat >"$bin_dir/log_archive_upload_conf.sh" <<'+++EOF'
+upload_dir=/aplikace/cp_log_arch/incoming
+upload_target=cp_log_arch@machine-name
++++EOF
+
+# Configure password-less SSH login to the upload target.
+# Create the directories on the upload target.
+
+mkdir -p /var/log/log_arch
+
+# test:
+
+"$bin_dir/log_archive_upload.sh" -n
+"$bin_dir/log_archive_upload.sh"
+
+clish -c 'add cron job log_arch command "'\
+"$bin_dir/log_archive_upload.sh"' >>/var/log/log_arch/cron.log 2>&1" recurrence daily time 2:25'
+clish -c 'save config'
+
+fi                # end of installation commands
+
 # Limitations:
 # * The algorithm expects that for every day there will be at least some logs.
 #   This is because the sequence of dates is created only from dates
