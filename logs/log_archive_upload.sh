@@ -106,8 +106,8 @@ contains () {
     printf %s "$1" | grep -Eq "$2"
 }
 
-# Convert list of items on lines to items separated by spaces.
-list_to_lines () {
+# Convert items on lines to items on a single line separated by spaces.
+lines_to_list () {
     printf %s "$1" | tr \\n ' '
 }
 
@@ -165,16 +165,16 @@ if contains "$days_to_upload" "^$newest_upload_date" ; then
 else
     log \
         "WARNING: Not uploading. Newest date allowed to upload $newest_upload_date"\
-        "not in available not uploaded logs: $(list_to_lines "$days_to_upload")."
+        "not in available not uploaded logs: $(lines_to_list "$days_to_upload")."
     exit 0
 fi
 
 if test -z "$days_to_upload" ; then
-    log "WARNING: Nothing to upload. Available logs: $(list_to_lines "$days_available")"
+    log "WARNING: Nothing to upload. Available logs: $(lines_to_list "$days_available")"
     exit 0
 fi
 
-# Show what was uploaded in case of interruption.
+# Show what was uploaded at the end or in case of interruption.
 log_uploads () {
     log \
         "INFO: Uploaded $uploaded_count log dates"\
@@ -191,10 +191,10 @@ file_block_size="$(stat -c%B "$tmp_dir/")"
 test "$?" -ne 0 && errexit "Cannot get block size of $tmp_dir/."
 uploaded_count=0
 last_uploaded=none
-printf '=== uploading %s\n' "$(date +%Y-%m-%d)" >> "$last_dates"
+printf '=== uploading on %s\n' "$(date +%Y-%m-%d)" >> "$last_dates"
 trap log_uploads INT
 for date in $days_to_upload ; do
-    printf 'Uploading day %s\n' "$date"
+    log "Uploading day $date"
 
     arch_name="${date}_$hostname.tgz"
     arch_name_incomplete="$arch_name.incomplete"
@@ -205,6 +205,7 @@ for date in $days_to_upload ; do
         log "Tar failed for $full_arch_name. Quitting for now."
         break
     fi
+    # Test if there is enough disk space on the target.
     file_size="$(( $(stat -c%b "$full_arch_name") * file_block_size ))"
     remote_free="$(
         ssh -oLogLevel=error "$upload_target" df -B1 --output=avail "$upload_dir/" |
