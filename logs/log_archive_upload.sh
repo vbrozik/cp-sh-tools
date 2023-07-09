@@ -12,6 +12,7 @@
 
 # Arguments:
 #   -n | --dry-run   Do not upload anything, just show what would be uploaded.
+#                    Log file is more verbose and written to stderr.
 #   -m | --max-days  Maximum number of days to upload. (Default: 1000)
 #                    All available days will be logged anyway.
 #   -h | --help      Show help and exit.
@@ -234,6 +235,7 @@ days_available="$(
     sort -u)"
 # Create list of days to upload. This list will be reduced.
 days_to_upload="$days_available"
+# TODO: Log the number of days, first and last day.
 days_available_list="$(lines_to_list "$days_available")"
 if test -n "$dry_run" ; then
     log "INFO: Log days present $(printf '%s' "$days_available_list" | wc -w): $days_available_list"
@@ -310,7 +312,7 @@ for date in $days_to_upload ; do
 
     # The rest is not implemented for dry run.
     if test -n "$dry_run" ; then
-        log "INFO: Dry run (not simulating the rest): checking disk space, uploading $full_arch_name."
+        log "INFO: Dry run: not simulated actions: checking disk space, uploading $full_arch_name."
         last_uploaded="$date"
         uploaded_count=$((uploaded_count + 1))
         if test "$uploaded_count" -ge "$max_days" ; then
