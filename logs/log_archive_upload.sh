@@ -220,7 +220,7 @@ days_available="$(
 # Create list of days to upload. This list will be reduced.
 days_to_upload="$days_available"
 if test -n "$dry_run" ; then
-    log "INFO: Log days present: $(lines_to_list "$days_available")"
+    log "INFO: Log days present $(printf '%s' "$days_available" | wc -l): $(lines_to_list "$days_available")"
 fi
 
 touch "$last_dates" || errexit "Cannot update file $last_dates"
