@@ -254,7 +254,7 @@ if contains "$days_available" "^$last_uploaded" ; then
 else
     log \
         "Some logs may be missing in the archive. Last uploaded date $last_uploaded"\
-        "is not in the available logs: $(list_to lines "$days_available")."
+        "is not in the available logs: $(lines_to_list "$days_available")."
 fi
 if test -n "$dry_run" ; then
     log "INFO: Days to upload: $(lines_to_list "$days_to_upload")"
