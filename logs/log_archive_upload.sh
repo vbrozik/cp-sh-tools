@@ -184,12 +184,24 @@ set -o pipefail
 # Parse arguments.
 dry_run=
 parameters_info=
+max_days=1000
 while test -n "$1" ; do
     case "$1" in
         -n|--dry-run)
             dry_run=1
-            parameters_info=" [dry-run]"
+            parameters_info="$parameters_info [dry-run]"
             log_file=/dev/stderr
+            ;;
+        -m|--max-days)
+            max_days="$2"
+            printf '%s\n' "$max_days" | grep -Eq '^[0-9]+$' ||
+                errexit "Invalid max-days value: $max_days"
+            shift
+            parameters_info="$parameters_info [max-days=$max_days]"
+            ;;
+        -h|--help)
+            printf 'Usage: %s [-h|--help] [-n|--dry-run] [-m|--max-days N]\n' "$0"
+            exit
             ;;
         *)
             errexit "Unknown argument: $1"
@@ -296,6 +308,10 @@ for date in $days_to_upload ; do
         log "INFO: Dry run (not simulating the rest): checking disk space, uploading $full_arch_name."
         last_uploaded="$date"
         uploaded_count=$((uploaded_count + 1))
+        if test "$uploaded_count" -ge "$max_days" ; then
+            log "INFO: Dry run: reached max-days=$max_days, quitting."
+            break
+        fi
         continue
     fi
 
@@ -338,6 +354,10 @@ for date in $days_to_upload ; do
     last_uploaded="$date"
     printf '%s\n' "$last_uploaded" >> "$last_dates"
     uploaded_count=$((uploaded_count + 1))
+    if test "$uploaded_count" -ge "$max_days" ; then
+        log "INFO: Reached max-days=$max_days, quitting."
+        break
+    fi
     sleep 5
 done
 
