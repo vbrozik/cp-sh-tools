@@ -210,6 +210,7 @@ for date in $days_to_upload ; do
     remote_free="$(
         ssh -oLogLevel=error "$upload_target" df -B1 --output=avail "$upload_dir/" |
         sed 1d )"
+    test "$?" -ne 0 && errexit "Cannot get free space on $upload_target:$upload_dir/."
     if test "$((file_size + upload_keep_free))" -ge "$remote_free" ; then
         printf '%s\n' "=== no space on upload target, quitting for now" >> "$last_dates"
         log "Not enough disk space on upload target $remote_free. Quitting for now."
