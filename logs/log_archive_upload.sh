@@ -12,6 +12,9 @@
 
 # Arguments:
 #   -n | --dry-run   Do not upload anything, just show what would be uploaded.
+#   -m | --max-days  Maximum number of days to upload. (Default: 1000)
+#                    All available days will be logged anyway.
+#   -h | --help      Show help and exit.
 
 # Installation:
 if false ; then     # installation commands, do not execute in this file
