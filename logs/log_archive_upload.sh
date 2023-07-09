@@ -234,8 +234,9 @@ days_available="$(
     sort -u)"
 # Create list of days to upload. This list will be reduced.
 days_to_upload="$days_available"
+days_available_list="$(lines_to_list "$days_available")"
 if test -n "$dry_run" ; then
-    log "INFO: Log days present $(printf '%s' "$days_available" | wc -l): $(lines_to_list "$days_available")"
+    log "INFO: Log days present $(printf '%s' "$days_available_list" | wc -w): $days_available_list"
 fi
 
 touch "$last_dates" || errexit "Cannot update file $last_dates"
