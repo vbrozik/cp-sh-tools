@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # log_archive_upload.sh
 #
@@ -6,6 +6,12 @@
 #
 # On the remote system the logs are supposed to be uploaded to a cloud storage
 # service using a separate program cloud_uploader.sh.
+
+# Repository:
+# https://raw.githubusercontent.com/vbrozik/cp-sh-tools/main/logs/log_archive_upload.sh
+
+# Arguments:
+#   -n | --dry-run   Do not upload anything, just show what would be uploaded.
 
 # Limitations:
 # * The algorithm expects that for every day there will be at least some logs.
@@ -118,11 +124,42 @@ rm_if_exists () {
     done
 }
 
+# Run the command dry if $dry_run is not empty.
+# Status code of the command is preserved.
+# In case of dry run, the status code is always 0.
+run_command () {
+    if test -z "$dry_run" ; then
+        # test -n "$verbose" && log 'Running:' "$*"
+        "$@"
+    else
+        log 'Dry run:' "$*"
+    fi
+}
+
 # endregion: common functions -----------------------------------------------
 
 # --------- the program
 
-log "INFO: Program started."
+set -o pipefail
+
+# Parse arguments.
+dry_run=
+parameters_info=
+while test -n "$1" ; do
+    case "$1" in
+        -n|--dry-run)
+            dry_run=1
+            parameters_info=" [dry-run]"
+            log_file=/dev/stderr
+            ;;
+        *)
+            errexit "Unknown argument: $1"
+            ;;
+    esac
+    shift
+done
+
+log "INFO: Program started${parameters_info}."
 
 if ! test -e "$work_dir/" ; then
     mkdir -p "$work_dir/" || errexit "Creating work directory $work_dir failed."
@@ -143,11 +180,17 @@ days_available="$(
     sort -u)"
 # Create list of days to upload. This list will be reduced.
 days_to_upload="$days_available"
+if test -n "$dry_run" ; then
+    log "INFO: Log days present: $(lines_to_list "$days_available")"
+fi
 
 touch "$last_dates" || errexit "Cannot update file $last_dates"
 
 # date of the latest uploaded logs
 last_uploaded="$(grep -E "^$ISO_DATE_ERE$" "$last_dates" | tail -n1)"
+if test -n "$dry_run" ; then
+    log "INFO: Last uploaded date: $last_uploaded"
+fi
 
 # Check if last_uploaded is in days_available, remove days till last_uploaded.
 if contains "$days_available" "^$last_uploaded" ; then
@@ -156,6 +199,9 @@ else
     log \
         "Some logs may be missing in the archive. Last uploaded date $last_uploaded"\
         "is not in the available logs: $(list_to lines "$days_available")."
+fi
+if test -n "$dry_run" ; then
+    log "INFO: Days to upload: $(lines_to_list "$days_to_upload")"
 fi
 
 # Check if newest_upload_date is in days_available.
@@ -199,12 +245,21 @@ for date in $days_to_upload ; do
     arch_name="${date}_$hostname.tgz"
     arch_name_incomplete="$arch_name.incomplete"
     full_arch_name="$tmp_dir/$arch_name"
-    nice -n19 ionice -c3 tar -czf "$full_arch_name" ./*"$date"_*.log*
+    run_command nice -n19 ionice -c3 tar -czf "$full_arch_name" ./*"$date"_*.log*
     if test "$?" -ne 0 ; then
         test -e "$full_arch_name" && rm "$full_arch_name"
         log "Tar failed for $full_arch_name. Quitting for now."
         break
     fi
+
+    # The rest is not implemented for dry run.
+    if test -n "$dry_run" ; then
+        log "INFO: Dry run (not simulating the rest): checking disk space, uploading $full_arch_name."
+        last_uploaded="$date"
+        uploaded_count=$((uploaded_count + 1))
+        continue
+    fi
+
     # Test if there is enough disk space on the target.
     file_size="$(( $(stat -c%b "$full_arch_name") * file_block_size ))"
     remote_free="$(
