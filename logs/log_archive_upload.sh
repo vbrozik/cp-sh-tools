@@ -243,6 +243,7 @@ touch "$last_dates" || errexit "Cannot update file $last_dates"
 
 # date of the latest uploaded logs
 last_uploaded="$(grep -E "^$ISO_DATE_ERE$" "$last_dates" | tail -n1)"
+last_uploaded="${last_uploaded:-<no date recorded>}"
 if test -n "$dry_run" ; then
     log "INFO: Last uploaded date: $last_uploaded"
 fi
