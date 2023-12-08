@@ -29,7 +29,7 @@ Performs the deletions of the objects.
 
 ## `logs`
 
-* `daily_storage.sh` --- Show $FWDIR/log disk space use by traffic logs per day.
+* `daily_storage.sh` --- Show `$FWDIR/log` disk space use by traffic logs per day.
 
 ### log_archive_upload
 
