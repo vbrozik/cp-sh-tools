@@ -1,7 +1,12 @@
 {
     "cSpell.words": [
         "cplic",
+        "cprid",
+        "netns",
         "noall",
-        "vsec"
+        "rcmd",
+        "rexec",
+        "vsec",
+        "vsenv"
     ]
 }
