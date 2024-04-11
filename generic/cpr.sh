@@ -2,7 +2,7 @@
 
 # Check Point remote operations on multiple targets
 
-# Usage: cpr.sh <target> <command> [command_args]
+# Usage: cpr <target> <command> [command_args]
 
 # requirements:
 #   - Gaia R81+ (tested on R81.10)
@@ -16,23 +16,29 @@
 if test "$#" -lt 1 -o "$1" = -h ; then
     # NOTE: The following here document must be indented by tabs, not spaces.
     cat <<- +++EOF+++
-		cpr.sh executes a command on multiple Check Point targets.
+		cpr executes a command on multiple Check Point targets.
 
-		Usage: $0 <target> <command> [args]
+		Usage: cpr <target> <command> [args]
 
-			If <target> starts with @, it is interpreted as a group name.
-			The group content is read from a file named target_group_<group_name>.txt
-			in the same directory as this script.
-			Target @@ lists the existing groups.
+		    If <target> starts with @, it is interpreted as a group name.
+		    The group content is read from a file named target_group_<group_name>.txt
+		    in the same directory as this script.
+		    Target @@ lists the existing groups.
 
-			On a VSX target you can execute certain commands on all VSes by using
-			the command: ip -all netns exec <command> [args]
+		    On a VSX target you can execute certain commands on all VSes by using
+		    the command: ip -all netns exec <command> [args]
 
-			If functions like vsenv are needed, you need to source /etc/bashrc.
+		    ATTENTION: Command args are modified by replacing " with '.
+		        Do not use double quotes around text to be expanded by the remote shell.
 
-			Examples:
-			    cpr.sh @hu_pro ip -all netns exec fw ctl fast_accel show_table
-			    cpr.sh @hu_pro bash -c '. /etc/bashrc ; vsenv 2 ; du -sh \$FWDIR/log/'
+		    If functions like vsenv are needed, you need to start a login shell
+		    or source /etc/bashrc. See the examples below.
+
+		    Examples:
+		        cpr @hu_pro ip -all netns exec fw ctl fast_accel show_table
+		        cpr @hu_pro bash -c '. /etc/bashrc ; vsenv 2 ; du -sh \$FWDIR/log/'
+		        cpr @hu_pro su -s /bin/bash -c 'vsenv 3 ; ip addr' - admin
+		        cpr @hu_pro sh -c 'top -bn2 | awk "/^top / {f++} f==2" | head -n15'
 		+++EOF+++
     exit 1
 fi
