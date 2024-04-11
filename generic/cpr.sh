@@ -50,32 +50,16 @@ if test "$#" -lt 1 -o "$1" = -h ; then
     exit 1
 fi
 
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+bash_lib_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )/lib_sh"
+
+# shellcheck source=/dev/null
+# shellcheck source=../lib_sh/targets.bash      # FIXME: This directive does not work.
+source "${bash_lib_dir}/targets.bash"
+
 targets=("$1")
 shift
 
-target="${targets[0]}"
-if test "${target:0:1}" = "@" ; then
-    # Target name starts with @, interpret as group name
-    if test "${target:1}" = "@" ; then
-        cd "${script_dir}" || exit 1
-        for group_file in target_group_*.txt ; do
-            group_name="${group_file#target_group_}"
-            group_name="${group_name%.txt}"
-            echo "--- @$group_name"
-            cat "$group_file"
-            echo
-        done
-        exit 0
-    fi
-    group_file="${script_dir}/target_group_${target:1}.txt"
-    if test -f "${group_file}" ; then
-        mapfile -t targets < <(grep -v '^#' "${group_file}")
-    else
-        echo "Group file ${group_file} not found"
-        exit 1
-    fi
-fi
+targets_expand
 
 for target in "${targets[@]}"; do
     echo "--- target: ${target}"
