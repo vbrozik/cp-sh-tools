@@ -13,6 +13,13 @@
 # - get all targets of a given category (e.g. all gateways)
 # - allow selecting VSes to execute a command on
 
+if test "$1" = -d ; then
+    # Enable debug mode.
+    PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -x
+    shift
+fi
+
 if test "$#" -lt 1 -o "$1" = -h ; then
     # NOTE: The following here document must be indented by tabs, not spaces.
     cat <<- +++EOF+++
