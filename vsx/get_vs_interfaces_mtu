@@ -4,6 +4,7 @@
 
 # Limitations:
 # - The script does not handle the case when the VS name contains spaces.
+# - MTU of wrp interfaces is not checked.
 
 # TODO:
 # - Add an option to generate a configuration file to unify the MTU values.
@@ -15,7 +16,9 @@ bash_lib_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )/lib_sh"
 # shellcheck source=../lib_sh/gateways.bash      # FIXME: This directive does not work.
 source "${bash_lib_dir}/gateways.bash"
 
-# From each line extract values following specified keywords
+
+# From each line extract values following specified keywords.
+# Missing keywords are ignored.
 get_values () {
     while read -r line ; do
         separator=''
@@ -30,7 +33,8 @@ get_values () {
     done
 }
 
-# This filter function adds $1 parameter with $2 value to lines missing it.
+# This filter function adds $1 parameter with $2 value (if not empty) to lines missing it.
+# If the line contains a comment, the parameter is added before the comment.
 add_parameter () {
     local parameter=$1
     local value=$2
@@ -42,7 +46,7 @@ add_parameter () {
     fi
 }
 
-# Get interfaces of a VS in $1
+# Get interfaces of a VS specified in $1
 get_interfaces () {
     local vs_name=$1
     local vs_config
@@ -83,9 +87,9 @@ display_help() {
 }
 
 
-output_negative_filter='a^'
-output_filter_command='cat'
-gw_filter=''
+output_negative_filter='a^'     # By default do not filter out anything
+output_filter_command='cat'     # By default pass all lines unaltered
+gw_filter=''                    # By default pass all gateways
 
 # Parse command line options using getopt
 OPTIONS=h
@@ -103,10 +107,12 @@ while true; do
             display_help 0
             ;;
         --ne)
+            # Filter out wrp interfaces and interfaces with MTU equal to $2
             output_negative_filter="^wrp[0-9]+| $2\$"
             shift 2
             ;;
         --count)
+            # Show only the number of interfaces
             output_filter_command='wc -l'
             shift
             ;;
