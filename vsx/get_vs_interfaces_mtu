@@ -4,7 +4,8 @@
 
 # Limitations:
 # - The script does not handle the case when the VS name contains spaces.
-# - MTU of wrp interfaces is not checked.
+# - MTU of wrp interfaces is not checked but MTU of virtual switches is.
+# - Supports running only on the management server using local authentication.
 
 # TODO:
 # - Add an option to generate a configuration file to unify the MTU values.
@@ -52,24 +53,27 @@ get_interfaces () {
     local vs_config
     vs_config=$(
         vsx_provisioning_tool -s localhost -L -o "show vd name $vs_name" \
-        2> >(grep -v '^Version '))
+            2> >(grep -v '^Version ')
+        )
     local vs_type
     vs_type=$(
         printf %s\\n "$vs_config" |
-            sed -En 's/^add +vd +.* +type +([^ ]+).*$/\1/p')
-    # Virtual switch has MTU set at the level of the VS
-    local default_mtu=
+            sed -En 's/^add +vd +.* +type +([^ ]+).*$/\1/p'
+        )
+    # Virtual switch has MTU set at the level of the VS, not at interfaces.
+    local vs_default_mtu=
     if [ "$vs_type" = vsw ] ; then
-        default_mtu=$(
+        vs_default_mtu=$(
             printf %s\\n "$vs_config" |
-                sed -En 's/^add +vd +.* +vs_mtu +([^ ]+).*$/\1/p')
+                sed -En 's/^add +vd +.* +vs_mtu +([^ ]+).*$/\1/p'
+            )
     fi
     printf %s\\n "$vs_config" |
         grep -E '^add +interface ' |
-        add_parameter mtu "$default_mtu"
+        add_parameter mtu "$vs_default_mtu"
 }
 
-# Display help
+# Display help and exit.
 display_help() {
     echo "Usage: $0 [options...] [--ne VALUE] ..."
     echo
@@ -92,22 +96,23 @@ output_filter_command='cat'     # By default pass all lines unaltered
 gw_filter=''                    # By default pass all gateways
 
 # Parse command line options using getopt
-OPTIONS=h
-LONGOPTS=help,count,gw-filter:,ne:
-PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@") ||
+options=h
+long_options=help,count,gw-filter:,ne:
+parsed_args=$(
+    getopt --options=$options --longoptions=$long_options --name "$0" -- "$@") ||
     {
-        # Getopt has shown an error message to stderr.
+        # Getopt has already written an error message to stderr.
         exit 2
     }
-eval set -- "$PARSED"
+eval set -- "$parsed_args"
 
-while true; do
+while true ; do
     case "$1" in
         -h|--help)
             display_help 0
             ;;
         --ne)
-            # Filter out wrp interfaces and interfaces with MTU equal to $2
+            # Filter out wrp interfaces and interfaces with MTU equal to the value.
             output_negative_filter="^wrp[0-9]+| $2\$"
             shift 2
             ;;
