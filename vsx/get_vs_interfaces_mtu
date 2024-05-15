@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# Obtain MTU values on VS interfaces
+
+# Limitations:
+# - The script does not handle the case when the VS name contains spaces.
+
+# TODO:
+# - Add an option to generate a configuration file to unify the MTU values.
+
+
+bash_lib_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )/lib_sh"
+
+# shellcheck source=/dev/null
+# shellcheck source=../lib_sh/gateways.bash      # FIXME: This directive does not work.
+source "${bash_lib_dir}/gateways.bash"
+
+# From each line extract values following specified keywords
+get_values () {
+    while read -r line ; do
+        separator=''
+        for keyword in "$@" ; do
+            value=$(echo "$line" | sed -En "s/^.* $keyword +([^ ]+).*$/\1/p")
+            if [ -n "$value" ] ; then
+                printf %s "$separator$value"
+                separator=' '
+            fi
+        done
+        echo
+    done
+}
+
+# Get interfaces of a VS in $1
+get_interfaces_old () {
+    local vs_name=$1
+    {
+        vsx_provisioning_tool -s localhost -L -o "show vd name $vs_name" |
+            grep -E '^add +interface '
+    } 2> >(grep -v '^Version ')
+}
+
+# This filter function adds $1 parameter with $2 value to lines missing it.
+add_parameter () {
+    local parameter=$1
+    local value=$2
+
+    if [ -z "$value" ] ; then
+        cat
+    else
+        sed -E "/ $parameter /! s/^([^#]+)( #.*)?$/\1 $parameter $value\2/"
+    fi
+}
+
+# Get interfaces of a VS in $1
+get_interfaces () {
+    local vs_name=$1
+    local vs_config
+    vs_config=$(
+        vsx_provisioning_tool -s localhost -L -o "show vd name $vs_name" \
+        2> >(grep -v '^Version '))
+    local vs_type
+    vs_type=$(
+        printf %s\\n "$vs_config" |
+            sed -En 's/^add +vd +.* +type +([^ ]+).*$/\1/p')
+    # Virtual switch has MTU set at the level of the VS
+    local default_mtu=
+    if [ "$vs_type" = vsw ] ; then
+        default_mtu=$(
+            printf %s\\n "$vs_config" |
+                sed -En 's/^add +vd +.* +vs_mtu +([^ ]+).*$/\1/p')
+    fi
+    printf %s\\n "$vs_config" |
+        grep -E '^add +interface ' |
+        add_parameter mtu "$default_mtu"
+}
+
+# Display help
+display_help() {
+    echo "Usage: $0 [options...] [--ne VALUE] ..."
+    echo
+    echo "   -h, --help         Display this help message"
+    echo "   --ne VALUE         Show only interfaces with MTU different from VALUE"
+    echo "                      (default: show all interfaces)"
+    echo "                      If specified, wrp and wrpj interfaces are excluded too"
+    echo "                      because the script currently does not get their MTU values."
+    echo "   --count            Show only the number of interfaces"
+    echo "   --gw-filter VALUE  Show only interfaces of virtual systems matching VALUE"
+    echo "                      (default: show interfaces of all virtual systems)"
+    echo "                      VALUE is a regular expression which has to match from the beginning of the name." 
+    echo
+    exit "${1:-1}"
+}
+
+
+output_negative_filter='a^'
+output_filter_command='cat'
+gw_filter=''
+
+# Parse command line options using getopt
+OPTIONS=h
+LONGOPTS=help,count,gw-filter:,ne:
+PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@") ||
+    {
+        # Getopt has shown an error message to stderr.
+        exit 2
+    }
+eval set -- "$PARSED"
+
+while true; do
+    case "$1" in
+        -h|--help)
+            display_help 0
+            ;;
+        --ne)
+            output_negative_filter="^wrp[0-9]+| $2\$"
+            shift 2
+            ;;
+        --count)
+            output_filter_command='wc -l'
+            shift
+            ;;
+        --gw-filter)
+            gw_filter="^$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Unknown option: $1. Use -h to show help." >&2
+            exit 3
+            ;;
+    esac
+done
+
+
+gateways=$(get_gateways CpmiVsClusterNetobj | grep -E "$gw_filter")
+
+for gateway in $gateways ; do
+    printf '\n--- gateway: %s\n' "$gateway"
+    get_interfaces "$gateway" |
+        get_values name mtu |
+        grep -Ev "$output_negative_filter" |
+        $output_filter_command
+done
