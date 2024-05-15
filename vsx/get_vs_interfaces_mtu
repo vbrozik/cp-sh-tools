@@ -30,15 +30,6 @@ get_values () {
     done
 }
 
-# Get interfaces of a VS in $1
-get_interfaces_old () {
-    local vs_name=$1
-    {
-        vsx_provisioning_tool -s localhost -L -o "show vd name $vs_name" |
-            grep -E '^add +interface '
-    } 2> >(grep -v '^Version ')
-}
-
 # This filter function adds $1 parameter with $2 value to lines missing it.
 add_parameter () {
     local parameter=$1
