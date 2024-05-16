@@ -6,7 +6,10 @@
 # TODO:
 # - get cluster members by cluster
 # - more detailed filtering (e.g. recognize virtual switches)
+#   - virtual switch - property "junction" is true, use show generic-object to obtain
 # - selection of fields to return (IP address, UUID, etc.)
+# - details-level full adds these interesting fields:
+#   - "cluster-member-names" - e.g. VS cluster instances
 
 # Get all gateways of a given type.
 # arguments:
