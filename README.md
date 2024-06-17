@@ -64,3 +64,11 @@ When executed the script checks log days suitable for upload. For each days it c
 This is a script which uploads available files to AWS S3 and deletes them afterwards. It is designed to cooperate with `log_archive_upload` running on Gaia. When executed it checks the given incoming directory for files with a given suffix (`.incomplete` files are ignored). All matching files are then uploaded to än AWS S3 bucket.
 
 Similarly to the other script `cloud_uploader_conf.sh` is a configuration file.
+
+## Conventions
+
+The shell scripts for normal use have no suffix so that they can be called by their plain names. (Old scripts may have `.sh` or `.bash` suffixes until they are fixed.) Shell library files have `.sh` or `.bash` suffix, they are not in PATH and they do not have the executable bit set.
+
+Shell scripts for special use like `install.bash` have a suffix.
+
+The shebang line is used in all shell files so that text editors and file content detection correctly recognize the files as containing shell code.
