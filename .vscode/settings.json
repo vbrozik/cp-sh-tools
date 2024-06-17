@@ -2,9 +2,12 @@
     "cSpell.words": [
         "cplic",
         "cprid",
+        "cpstat",
+        "cpwd",
         "netns",
         "noall",
         "rcmd",
+        "restarter",
         "rexec",
         "vsec",
         "vsenv"
