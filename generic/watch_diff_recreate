@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# This script recreates sequence of files from the watch_diff history log.
+# The input file is a history log file created by the watch_diff script.
+
+# Note: The tool requires the patch utility to be installed on the system.
+#   Which does not seem to be available on Check Point Gaia OS.
+#   As a workaround, the script can be run on a system with the patch utility.
+
+# Usage:
+#   watch_diff_recreate <input_file>
+
+# TODO: Resolve missing patch utility on Check Point Gaia OS.
+
+prog_name=watch_diff_recreate
+
+err_exit () {
+    echo "$prog_name: ERROR: $1" 1>&2
+    exit 1
+}
+
+tmp_dir=$(mktemp -d --tmpdir "${prog_name}_XXXXXX") ||
+    err_exit "Failed to create temporary file."
+
+# cleanup
+trap 'rm -rf "$tmp_dir"' EXIT
+
+test -r "$1" || err_exit "Missing or unreadable input file."
+
+# Check if the line from the input file starts a change record.
+# Print start of a change record for the output file.
+get_change_line () {
+    local line="$1"
+    printf %s "$line"
+    grep -qE '^[0-9-]{10}T[0-9:+]{8,10} === command output changed ' <<< "$line"
+}
+
+input_file="$1"
+current_file="$tmp_dir/current"
+touch "$current_file"
+current_diff_file="$tmp_dir/current.diff"
+change_record=
+
+# Apply diff file to the file and print the file.
+apply_diff_print () {
+    local diff_file="$1"
+    local file="$2"
+    test -f "$diff_file" || return 0
+    patch "$file" "$diff_file" || err_exit "Failed to apply diff."
+    rm -f "$diff_file"
+    cat "$file"
+}
+
+while IFS= read -r line ; do
+    if change_record_new=$(get_change_line "$line") ; then
+        apply_diff_print "$current_diff_file" "$current_file"
+        printf \\n%s\\n "$change_record_new"
+        change_record=$change_record_new
+    else
+        if test -z "$change_record" ; then
+            test -z "$line" && continue
+            err_exit "Missing change record."
+        fi
+        printf %s\\n "$line" >> "$current_diff_file"
+    fi
+done < "$input_file"
+
+apply_diff_print "$current_diff_file" "$current_file"

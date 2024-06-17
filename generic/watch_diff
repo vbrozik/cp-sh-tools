@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# This script periodically runs a command and if a change in its output is detected
+# it is logged to a file. The script is intended to be run as a cron job.
+
+# The arguments are the command with its arguments.
+# The log file name and last command output temporary file are created from the command
+# and its arguments.
+
+# Usage:
+# watch_diff command [args...]
+# Adding a testing command to a cron job:
+if false ; then     # Example commands not to be executed here:
+
+cat > /etc/cron.d/watch_diff__cat_test_file1 << +++EOF+++
+SHELL=/bin/bash
+* * * * * root source /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff cat /tmp/test_file1
+*/5 * * * * root source /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff vsec_lic_cli view
++++EOF+++
+chmod u=rw,go= /etc/cron.d/watch_diff__cat_test_file1
+
+fi
+
+# The log file is created in /var/log/watch_diff__<command>.log
+# The temporary file containing the last command output is created in /tmp/watch_diff__<command>.txt
+
+# TODO:
+# - Store the command output only to files to be able to check large outputs.
+# - Count the number of checks and log it to the log file.
+
+
+tool_name=watch_diff
+log_prefix="/var/log/$tool_name"
+tmp_prefix="/tmp/$tool_name"
+
+
+# Transform the command and its arguments into a file name part.
+get_file_name_from_arguments () {
+    printf %s "$*" | sed -E 's/[^a-zA-Z0-9-]/_/g'
+}
+
+if [ $# -eq 0 ] ; then
+    echo "Usage: $0 command [args...]"
+    exit 1
+fi
+
+file_name_base=$(get_file_name_from_arguments "$@")
+log_file="${log_prefix}__${file_name_base}.log"
+tmp_file="${tmp_prefix}__${file_name_base}.txt"
+
+if [ ! -f "$tmp_file" ] ; then
+    # Create empty file with oldest possible timestamp.
+    touch -t 197001010000 "$tmp_file"
+fi
+
+output=$("$@")
+time=$(date -Im)
+
+if [ "$output" != "$(cat "$tmp_file")" ] ; then
+    tmp_time=$(date -d "@$(stat -c %Y "$tmp_file")" -Im)
+    printf '\n%s === command output changed since %s ===\n' "$time" "$tmp_time" >> "$log_file"
+    diff -u "$tmp_file" <(printf %s "$output" | sed \$a\\) >> "$log_file"
+    printf %s "$output" | sed \$a\\ > "$tmp_file"
+fi
