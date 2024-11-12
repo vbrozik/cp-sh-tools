@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Run command in background, detached, output to file,
+# but also tail the output file until the command finishes.
+
+datetime=$(date '+%Y%m%dT%H%M%S')
+command_output="bgjob_${datetime}_out.txt"
+
+nohup "$@" > "$command_output" 2>&1 &
+pid=$!
+
+# Note: On Gaia R80.10 --pid argument does not seem to work.
+# TODO: test:
+# touch sleep_test ; sleep 1 & tail -f --pid=$! sleep_test ; rm sleep_test
+# TODO: Check what happens if the command starts child processes.
+exec tail --pid=$pid -f "$command_output"
