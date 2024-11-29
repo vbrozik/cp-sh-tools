@@ -17,8 +17,9 @@
 #           simple-gateway          - regular gateway
 #           CpmiVsxClusterNetobj    - VSX cluster
 #           CpmiVsxClusterMember    - VSX cluster member
-#           CpmiVsClusterNetobj     - VS (on a VSX cluster), includes virtual switches!
-# limitations: Does not get more thatn 500 gateways.
+#           CpmiVsClusterMember     - VS cluster member instance of a VS
+#           CpmiVsClusterNetobj     - VS (only on a VSX cluster?), includes virtual switches!
+# limitations: Does not get more than 500 gateways. Can be fixed if needed.
 get_gateways () {
     local gateway_type="$1"
 
