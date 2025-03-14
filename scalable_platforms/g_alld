@@ -1,0 +1,98 @@
+#!/bin/sh
+
+# g_alld
+
+# Perform like g_allc but also make a diff of the outputs.
+
+# Note escaping of the command is not trivial. The rules are not known yet.
+# Examples of a working command with escaping:
+# /opt/ntt/bin/g_alld 'clish -c show\\ configuration'
+# /opt/ntt/bin/g_alld 'clish -c \"show configuration\"'
+# /opt/ntt/bin/g_alld "clish -c 'show configuration'"
+
+# Note: Double escaping seems to be:
+# needed for: \ "
+# not needed for: ' |
+
+diff_tool='diff -u'
+# diff_tool='vimdiff'
+
+help () {
+    echo "Run command on all blades like g_allc but also make a diff of the outputs."
+    echo "Usage: $0 [-d <diff_tool>] command [args...]"
+    echo "Options:"
+    echo "  -d <diff_tool>  The diff tool to use to compare 2 outputs. Default: $diff_tool"
+}
+
+# Parse the options.
+while getopts 'd:' opt ; do
+    case $opt in
+        d) diff_tool=$OPTARG ;;
+        *) help ; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+# Create a temporary directory.
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+g_allc "$@" > "$tmp_dir"/output
+g_allc_status=$?
+
+cd "$tmp_dir" || {
+    echo "Error: Could not change to the temporary directory $tmp_dir." >&2
+    exit 1
+}
+
+current_blade_file=
+while read -r line ; do
+    if
+        printf %s\\n "$line" |
+        grep -Eq '^-\*-\s+[0-9]+\s+blades?:\s+[0-9_ ]+\s+-\*-\s*$'
+    then
+        blades=$(
+            printf %s\\n "$line" |
+            sed -nE '
+                s/^-.*: ([0-9_ ]+) -.*-$/\1/
+                    t continue
+                    q
+                : continue
+                    s/ /+/g
+                    p
+                ')
+        if [ -z "$blades" ] ; then
+            echo "Error: Could not parse the blades identifier in $line." >&2
+            exit 1
+        fi
+        current_blade_file=blades-"$blades".txt
+    elif [ -n "$current_blade_file" ] ; then
+        printf %s\\n "$line" >> "$current_blade_file"
+    else
+        echo "Error: Unexpected line without a blades separator: $line" >&2
+        exit 1
+    fi
+done < "$tmp_dir"/output
+
+if [ -n "$current_blade_file" ] ; then
+    # There is an extra empty line at the end. Remove it.
+    sed -i '$ {/^$/d}' "$current_blade_file"
+fi
+
+blade_files_count=$(find . -maxdepth 1 -name 'blades-*.txt' -printf 1 | wc -c)
+if [ "$blade_files_count" -eq 0 ] ; then
+    echo "Error: No blade output files were created." >&2
+    exit 1
+elif [ "$blade_files_count" -eq 1 ] ; then
+    printf '=== %s ===\n' blades-*.txt
+    cat blades-*.txt
+elif [ "$blade_files_count" -eq 2 ] ; then
+    $diff_tool blades-*.txt
+elif [ "$blade_files_count" -gt 2 ] ; then
+    vimdiff blades-*.txt
+else
+    echo "Error: Unexpected number of blade files: $blade_files_count" >&2
+    exit 1
+fi
+
+exit $g_allc_status
