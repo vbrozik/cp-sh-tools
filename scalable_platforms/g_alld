@@ -21,7 +21,7 @@ help () {
     echo "Run command on all blades like g_allc but also make a diff of the outputs."
     echo "Usage: $0 [-d <diff_tool>] command [args...]"
     echo "Options:"
-    echo "  -d <diff_tool>  The diff tool to use to compare 2 outputs. Default: $diff_tool"
+    echo "  -d <diff_tool>  The diff tool to use to compare 2 outputs. Default: '$diff_tool'"
 }
 
 # Parse the options.
