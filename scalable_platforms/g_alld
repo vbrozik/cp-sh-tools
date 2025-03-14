@@ -24,7 +24,6 @@ help () {
     echo "  -d <diff_tool>  The diff tool to use to compare 2 outputs. Default: '$diff_tool'"
 }
 
-# Parse the options.
 while getopts 'd:' opt ; do
     case $opt in
         d) diff_tool=$OPTARG ;;
@@ -33,17 +32,18 @@ while getopts 'd:' opt ; do
 done
 shift $((OPTIND - 1))
 
-# Create a temporary directory.
+# Create a temporary directory for all the working files.
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
-
-g_allc "$@" > "$tmp_dir"/output
-g_allc_status=$?
 
 cd "$tmp_dir" || {
     echo "Error: Could not change to the temporary directory $tmp_dir." >&2
     exit 1
 }
+
+# Use g_allc to run the command on all blades and deduplicate the identical outputs.
+g_allc "$@" > output.txt
+g_allc_status=$?
 
 current_blade_file=
 while read -r line ; do
@@ -62,7 +62,7 @@ while read -r line ; do
                     p
                 ')
         if [ -z "$blades" ] ; then
-            echo "Error: Could not parse the blades identifier in $line." >&2
+            echo "Error: Could not parse the blade identifiers in $line." >&2
             exit 1
         fi
         current_blade_file=blades-"$blades".txt
@@ -72,7 +72,7 @@ while read -r line ; do
         echo "Error: Unexpected line without a blades separator: $line" >&2
         exit 1
     fi
-done < "$tmp_dir"/output
+done < output.txt
 
 if [ -n "$current_blade_file" ] ; then
     # There is an extra empty line at the end. Remove it.
