@@ -9,30 +9,72 @@
 
 # Usage:
 # watch_diff command [args...]
-# Adding a testing command to a cron job:
-if false ; then     # Example commands not to be executed here:
 
+# Adding a testing command to a cron job:
+if false ; then     # --- Example commands not to be executed here:
+
+# Notes:
+# - The Check Point scripts require bash.
+# - vixie-cron does not support line splitting in the crontab file.
 cat > /etc/cron.d/watch_diff__cat_test_file1 << +++EOF+++
 SHELL=/bin/bash
-* * * * * root source /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff cat /tmp/test_file1
-*/5 * * * * root source /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff vsec_lic_cli view
+* * * * * root . /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff -c 2 cat /tmp/test_file1
+*/5 * * * * root . /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff -c 1 vsec_lic_cli view
+*/5 * * * * root . /etc/profile.d/CP.sh ; . /etc/profile.d/vsenv.sh ; vsenv 1 ; /opt/ntt/bin/watch_diff -c 0 -e "^[-+](Total generated sync messages|Total received updates|Hold Pkts events|Unhold Pkt events)" cphaprob -a syncstat
 +++EOF+++
-chmod u=rw,go= /etc/cron.d/watch_diff__cat_test_file1
 
-fi
+# Note: The file must be owned by root and have permissions 600.
+chown root:root /etc/cron.d/watch_diff__cat_test_file1
+chmod go= /etc/cron.d/watch_diff__cat_test_file1
+
+# The command for a cron job can be tested manually by running it in a clean environment:
+env -i /bin/bash -c '. /etc/profile.d/CP.sh ; /opt/ntt/bin/watch_diff -c 1 vsec_lic_cli view'
+
+fi                  # --- Example end.
 
 # The log file is created in /var/log/watch_diff__<command>.log
 # The temporary file containing the last command output is created in /tmp/watch_diff__<command>.txt
 
-# TODO:
+# Requirements:
+# - bash
+# - stat from GNU coreutils (uses -c %.Y)
+# - sed from GNU sed (uses \$a\\)
+
+# TODO ideas:
+# - Add an option to load Check Point Gaia environment variables.
+# - Add an option to switch to a VS context on Check Point VSX.
 # - Store the command output only to files to be able to check large outputs.
 # - Count the number of checks and log it to the log file.
+# - Add an option to install the cron job.
 
 
 tool_name=watch_diff
 log_prefix="/var/log/$tool_name"
 tmp_prefix="/tmp/$tool_name"
 
+date_format='-Ins'
+diff_context=0
+include_regex=''    # Matches everything.
+exclude_regex='a^'  # Matches nothing.
+
+help () {
+    echo "Usage: $0 [-c <diff_context>] [-i <include_regex>] [-e <exclude_regex>] command [args...]"
+    echo "Options:"
+    echo "  -c <diff_context>  Number of context lines to show in the diff. Default: $diff_context"
+    echo "  -i <include_regex> Include only lines matching the regex in the diff."
+    echo "  -e <exclude_regex> Exclude lines matching the regex from the diff."
+} 
+
+# Parse the options.
+while getopts 'c:i:e:' opt ; do
+    case $opt in
+        c) diff_context=$OPTARG ;;
+        i) include_regex=$OPTARG ;;
+        e) exclude_regex=$OPTARG ;;
+        *) help ; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 # Transform the command and its arguments into a file name part.
 get_file_name_from_arguments () {
@@ -40,7 +82,7 @@ get_file_name_from_arguments () {
 }
 
 if [ $# -eq 0 ] ; then
-    echo "Usage: $0 command [args...]"
+    help
     exit 1
 fi
 
@@ -53,12 +95,23 @@ if [ ! -f "$tmp_file" ] ; then
     touch -t 197001010000 "$tmp_file"
 fi
 
+time=$(date "$date_format")
 output=$("$@")
-time=$(date -Im)
+# TODO: Check the command exit status and record it.
 
 if [ "$output" != "$(cat "$tmp_file")" ] ; then
-    tmp_time=$(date -d "@$(stat -c %Y "$tmp_file")" -Im)
-    printf '\n%s === command output changed since %s ===\n' "$time" "$tmp_time" >> "$log_file"
-    diff -u "$tmp_file" <(printf %s "$output" | sed \$a\\) >> "$log_file"
-    printf %s "$output" | sed \$a\\ > "$tmp_file"
+    tmp_time=$(date -d "@$(stat -c %.Y "$tmp_file")" "$date_format")
+    # sed \$a\\ adds a newline at the end of the file if it is missing.
+    output_diff=$(
+        diff -U"$diff_context" "$tmp_file" <(printf %s "$output" | sed \$a\\) |
+        grep -Ev '^(---|\+\+\+) ')
+    watched_parts=$(
+        printf %s "$output_diff" | grep -E '^[-+]' |
+        grep -E "$include_regex" | grep -vE "$exclude_regex")
+    if [ -n "$watched_parts" ] ; then
+        printf '\n%s === output changed since %s ===\n' \
+            "$time" "$tmp_time" >> "$log_file"
+        printf %s "$output_diff" | sed \$a\\ >> "$log_file"
+        printf %s "$output" | sed \$a\\ > "$tmp_file"
+    fi
 fi
