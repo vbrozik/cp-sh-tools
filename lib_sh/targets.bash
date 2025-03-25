@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# targets.bash
+
 # Library for expanding targets specification to an array
 # of target IP addresses.
 
@@ -40,6 +42,7 @@ targets_print () {
 
 targets_expand () {
     local target group_file
+    local prefix
 
     target="${targets[0]}"
     if test "${target:0:1}" = "@" ; then
@@ -51,7 +54,14 @@ targets_expand () {
         fi
         group_file="$groups_dir/$group_file_prefix${target:1}$group_file_suffix"
         if test -f "${group_file}" ; then
+            # Cannot use pipe here, because we need to modify the targets array.
             mapfile -t targets < <(grep -Ev '^ *#|^ *$' "${group_file}")
+            # If the first target ends with @ add it as a prefix to all targets.
+            if test "${targets[0]: -1}" = "@" ; then
+                prefix="${targets[0]}"
+                targets=("${targets[@]:1}")
+                targets=("${targets[@]/#/$prefix}")
+            fi
         else
             echo "Group file ${group_file} not found"
             exit 1
