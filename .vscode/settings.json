@@ -1,9 +1,14 @@
 {
     "cSpell.words": [
+        "allc",
+        "alld",
+        "argjson",
+        "coreutils",
         "cplic",
         "cprid",
         "cpstat",
         "cpwd",
+        "fromjson",
         "LOGNAME",
         "netns",
         "Netobj",
@@ -11,7 +16,9 @@
         "rcmd",
         "restarter",
         "rexec",
+        "vimdiff",
         "vsec",
-        "vsenv"
+        "vsenv",
+        "xlate"
     ]
 }
