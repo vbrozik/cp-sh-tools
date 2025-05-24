@@ -1,7 +1,14 @@
 #!/bin/bash
 
+# get_vs_interfaces
+
 # The script obtains the interfaces of the specified virtual systems.
-# The output format is CSV: VS name, interface name, IP address, mask length, MTU.
+# The output format is CSV:
+#   VS_name,Interface,Master_interface,VLAN_ID,IP_address,Mask_length,MTU
+
+# TODO
+# Get VSX gateways/clusters $(get_gateways CpmiVsxClusterNetobj) and
+# add them as an additional column to the output.
 
 # Dependencies:
 # - lib_sh/gateways.bash
@@ -12,6 +19,9 @@ bash_lib_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )/lib_sh"
 # shellcheck source=../lib_sh/gateways.bash      # FIXME: This directive does not work.
 source "${bash_lib_dir}/gateways.bash"
 
+print_header=1
+
+# ------------------------------------------------------------------------------
 
 if [ -z "$user" ] ; then
     user="$LOGNAME"
@@ -19,6 +29,7 @@ fi
 
 if [ -z "$password" ] ; then
     read -rs -p "Enter password for $user: " password
+    echo >&2
 fi
 
 if [ -z "$gateways" ] ; then
@@ -26,8 +37,13 @@ if [ -z "$gateways" ] ; then
 fi
 
 
+if [ $print_header -eq 1 ] ; then
+    echo "VS_name,Interface,Master_interface,VLAN_ID,IP_address,Mask_length,MTU"
+fi
+
 for vs in $gateways ; do
-    vsx_provisioning_tool -s 127.0.0.1 -u "$user" -p "$password" -o "show vd name $vs" \
+    # vsx_provisioning_tool -s 127.0.0.1 -u "$user" -p "$password" -o "show vd name $vs" \
+    vsx_provisioning_tool -s 127.0.0.1 -L -o "show vd name $vs" \
         2> >(grep -v '^Version ' >&2)   # Filter Version lines from stderr.
 done |
-    sed -En 's%^add interface vd ([^ ]+) name ([^ ]+) ip ([^ /]+)/([^ ]+)( mtu ([^ ]+))?.*$%\1,\2,\3,\4,\6%p'
+    sed -En 's%^add interface vd ([^ ]+) name (([^ .]+)\.([^ .]+)|[^ ]+) ip ([^ /]+)/([^ ]+)( mtu ([^ ]+))?.*$%\1,\2,\3,\4,\5,\6,\8%p'

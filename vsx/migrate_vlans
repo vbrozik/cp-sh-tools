@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# migrate_vlans
+
+# This script is used to migrate network segments from VSX gateways
+# to Cisco ACI (with policy-based redirect).
+
+# Dependencies:
+# - set_actual_vs_interfaces_in_cluster
+#   - Modifies actual interfaces on VS instances (not through the central management).
+#   - This is the only way to quickly disable interfaces on a VS.
+# - modify_vs_interfaces
+#   - Modifies the interfaces of a VS through the central management.
+# - set_bd_routing_wrp
+#   - Enables or disables the broadcast domain routing for given VLANs on the given ACI tenant.
+#   - This is a wrapper for tool set_bd_routing.py running on a different server.
+
+dry_run_prefix=
+# dry_run_prefix=echo
+
+help () {
+    # Note: The here document must be indented with tabs, not spaces.
+    #       When editing it in VS Code use F1, Indent Using Tabs temporarily.
+    cat <<- +++EOF+++
+		Migrate network segments from VSX gateways to Cisco ACI (with PBR redirect).
+
+		Usage:
+		  migrate_vlans <settings_file> <action>
+
+		Arguments:
+		  settings_file:  Shell settings file with the following variables:
+		                  vs_name:               Name of the virtual system.
+		                  vsid:                  ID of the virtual system.
+		                  cluster_members_file:  File with the cluster members running the VS.
+		                  interfaces_file:       File with the interfaces on the VS to migrate.
+		                  aci_tenant:            ACI tenant name.
+		                  set_bd_routing_settings:  Settings file for the set_bd_routing_wrp script.
+		  action:       Action to perform:
+		                  check:                 Check readiness for migration.
+		                  prepare:               Prepare the VS for migration.
+		                                         - Disable antispoofing.
+		                  prepare-rollback:      Rollback the preparation.
+		                                         - Enable antispoofing.
+		                  migrate:               Migrate the segments to ACI.
+		                                         - Disable interfaces on the VS instances.
+		                                         - Enable the the PBR routing on the ACI tenant.
+		                  migrate-rollback:      Rollback the migration.
+		                                         - Disable the PBR routing on the ACI tenant.
+		                                         - Enable interfaces on the VS instances.
+		                  cleanup:               Cleanup the VS after migration.
+		                                         - Delete the interfaces on the VS instances.
+		                                         - Enable antispoofing.
+		+++EOF+++
+}
+
+err_exit () {
+    printf "Error: %s %s\n" "$1" Exiting. 1>&2
+    exit 1
+}
+
+settings_file=$1
+shift
+if ! test -r "$settings_file" ; then
+    echo "Settings file $settings_file not found"
+    help
+    exit 1
+fi
+action=$1
+shift
+
+# shellcheck source=/dev/null   # We cannot check a dynamic file.
+. "$settings_file"
+
+for setting in \
+        vs_name vsid interfaces_file aci_tenant cluster_members_file set_bd_routing_settings
+do
+    if [ -z "${!setting}" ] ; then
+        echo "Setting $setting not found in $settings_file"
+        help
+        exit 1
+    fi
+done
+# shellcheck disable=SC2154,SC2086  # The variables are defined in the settings file.
+: $vs_name $vsid $interfaces_file $aci_tenant $cluster_members_file $set_bd_routing_settings
+
+if ! test -r "$interfaces_file" ; then
+    echo "Interfaces file $interfaces_file not found."
+    exit 1
+fi
+
+# Extract the VLAN IDs from the file containing interface name per line
+# and output them as a comma-separated list.
+vlan_list=$(
+    sed -En 's/^.+\.([0-9]+)$/\1/p' "$interfaces_file" |
+        tr '\n' ',' | sed 's/,$//'
+)
+
+# Print the current timestamp in ISO 8601 format.
+print_timestamp () {
+    date -Ins
+}
+
+move_to_aci () {
+    $dry_run_prefix set_actual_vs_interfaces_in_cluster \
+            "$vsid" down "$cluster_members_file" "$interfaces_file" ||
+        err_exit "Failed to disable interfaces on the VS instances."
+    print_timestamp
+    $dry_run_prefix set_bd_routing_wrp \
+            "$set_bd_routing_settings" -t "$aci_tenant" "$vlan_list" yes ||
+        err_exit "Failed to enable BD routing on the ACI tenant."
+    print_timestamp
+}
+
+move_from_aci () {
+    $dry_run_prefix set_bd_routing_wrp \
+            "$set_bd_routing_settings" -t "$aci_tenant" "$vlan_list" no ||
+        err_exit "Failed to disable BD routing on the ACI tenant."
+    print_timestamp
+    $dry_run_prefix set_actual_vs_interfaces_in_cluster \
+            "$vsid" up "$cluster_members_file" "$interfaces_file" ||
+        err_exit "Failed to re-enable interfaces on the VS instances."
+    print_timestamp
+}
+
+if [ "$action" = check ] ; then
+    # Check availability of the command line tools.
+    for tool in set_actual_vs_interfaces_in_cluster set_bd_routing_wrp ; do
+        if ! command -v "$tool" >/dev/null 2>&1 ; then
+            echo "Command $tool not found."
+            exit 1
+        fi
+    done
+    # TODO
+    # - Check the availability of the SSH server and the python script.
+    # - Check the connectivity to the ACI tenant.
+    # - Check the connectivity to the cluster members.
+    # - Check the availability of required tools on the cluster members.
+    # - Check the presence and state of the interfaces on the VS instances.
+    printf "All checks passed.\n"
+elif [ "$action" = prepare ] ; then
+    modify_vs_interfaces "$vs_name" no_antispoofing ||
+        err_exit "Failed to disable antispoofing on the VS."
+    printf "\nDone. Do not forget to install the policy."
+elif [ "$action" = prepare-rollback ] ; then
+    modify_vs_interfaces "$vs_name" antispoofing ||
+        err_exit "Failed to enable antispoofing on the VS."
+    printf "\nDone. Do not forget to install the policy."
+elif [ "$action" = migrate ] ; then
+    move_to_aci
+    printf '\nDone. Do not forget to run "migrate_vlans %s cleanup" after testing.' \
+        "$settings_file"
+elif [ "$action" = migrate-rollback ] ; then
+    move_from_aci
+    modify_vs_interfaces "$vs_name" antispoofing ||
+        err_exit "Failed to enable antispoofing on the VS."
+    printf '\nDone. Do not forget to install the policy.'
+elif [ "$action" = cleanup ] ; then
+    modify_vs_interfaces "$vs_name" delete_interfaces "$interfaces_file" ||
+        err_exit "Failed to delete interfaces on the VS."
+    modify_vs_interfaces "$vs_name" antispoofing ||
+        err_exit "Failed to enable antispoofing on the VS."
+    printf '\nDone. Do not forget to install the policy.'
+else
+    echo "Unknown action $action"
+    help
+    exit 1
+fi

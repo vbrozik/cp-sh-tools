@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# set_bd_routing_wrp
+
+# This script is a wrapper for the set_bd_routing.py script.
+# It reads settings which are the same for all the calls
+# in the environment from a setting file. It runs the python script
+# on a different server using SSH.
+
+help () {
+    # Note: The here document must be indented with tabs, not spaces.
+    #       When editing it in VS Code use F1, Indent Using Tabs temporarily.
+    cat <<- +++EOF+++
+		Set BD routing for the given VLANs on the given ACI tenant.
+		Usage:
+		    set_bd_routing_wrp <settings_file> [set_bd_routing.py options]
+		Arguments:
+		    settings_file:  Shell settings file with the following variables:
+		                    apic:                 APIC IP address.
+		                    user:                 APIC username.
+		                    pass_file:            Password file for SSH.
+		                    ssh_server:           SSH server to run the set_bd_routing.py script on.
+		                    ssh_server_command:   Command to run the set_bd_routing.py script on the SSH server.
+			set_bd_routing.py options:
+		                    -t <tenant>           ACI tenant name.
+		                    <vlan_list>           List of VLANs separated by comma to set BD routing for.
+		                    <routing_state>       yes|no Enable or disable BD routing for the given VLANs.
+
+		                    -a <apic>, -u <user>  Already given by this wrapper.
+		+++EOF+++
+}
+
+err_exit () {
+    printf "Error: %s %s\n" "$1" Exiting. 1>&2
+    exit 1
+}
+
+parameters_file=$1
+shift
+if ! test -r "$parameters_file" ; then
+    err_exit "Cannot read parameters file: $parameters_file"
+fi
+
+# shellcheck source=/dev/null   # We cannot check a dynamic file.
+. "$parameters_file" ||
+    err_exit "Cannot source parameters file: $parameters_file"
+
+for setting in apic user pass_file ssh_server ssh_server_command; do
+    if [ -z "${!setting}" ]; then
+        err_exit "Setting $setting not found in $parameters_file"
+    fi
+done
+# shellcheck disable=SC2154,SC2086  # The variables are defined in the settings file.
+: $apic $user $pass_file $ssh_server $ssh_server_command
+
+user_escaped=$(printf '%q' "$user")
+
+if ! test -r "$pass_file" ; then
+    err_exit "Password file $pass_file not found."
+fi
+
+# shellcheck disable=SC2086  # We apply word splitting to $ssh_server_command.
+< "$pass_file" ssh "$ssh_server" $ssh_server_command -a "$apic" -u "$user_escaped" "$@"
