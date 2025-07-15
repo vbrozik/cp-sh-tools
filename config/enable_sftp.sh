@@ -25,9 +25,10 @@
 
 sshd_config_template="/etc/ssh/templates/sshd_config.templ"
 
-sed -E -i.bak \
+sed -E -i.backup \
     -e 's%^\s*Subsystem\s+sftp\s+.+sftp-server%# &\nSubsystem       sftp    internal-sftp%' \
         "$sshd_config_template"
-# Create new sshd_config from the template:
+
+# Create new sshd_config from the template and apply it:
 sshd_template_xlate < /config/active
 service sshd reload
