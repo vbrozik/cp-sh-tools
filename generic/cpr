@@ -5,14 +5,27 @@
 # Usage: cpr <target> <command> [command_args]
 
 # requirements:
-#   - Gaia R81+ (tested on R81.10)
+#   - Gaia R81+ (tested on R81.10, R81.20)
 #   - bash 4.4+ (R81.10 contains bash 4.4.19)
 
 # TODO:
 # - unify required escaping for cprid_util and ssh targets
+# - explore and try to overcome the mangling of double quotes by cprid_util
 # - get targets from cluster objects
 # - get all targets of a given category (e.g. all gateways)
 # - allow selecting VSes to execute a command on
+# - add bash completion for targets
+# - allow to specify multiple targets
+# - move target lists to a single file (probably JSON)
+
+# recommended settings:
+if false ; then     # --- Documentation commands start
+
+# The most readable color scheme for vimdiff:
+echo 'colorscheme desert' >> ~/.vimrc
+
+fi                  # --- Documentation commands end
+
 
 diff_tool='diff'
 
@@ -41,7 +54,7 @@ help () {
 		    On a VSX target you can execute certain commands on all VSes by using
 		    the command: ip -all netns exec <command> [args]
 
-		    ATTENTION: Command args are modified by replacing " with '.
+		    ATTENTION: Command args are modified by cprid_util by replacing " with '.
 		        Do not use double quotes around text to be expanded by the remote shell.
 
 		    If functions like vsenv are needed, you need to start a login shell
