@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# maestro_switchover
+
+# Author: Václav Brožík
+
+# Perform a controlled switchover of a Maestro dual-site cluster by switching
+# all Security Gateway Modules (SGMs) in one site (chassis) up or down.
+
+# Tested on R81.20
+
+# Similar functionality seems to be available with the following command:
+# g_clusterXL_admin -b chassis1|chassis2 up|down
+# but this form of the command is not documented.
+
+
+help () {
+    cat << EOF
+maestro_switchover
+
+Perform a controlled switchover of a Maestro dual-site cluster by switching
+all Security Gateway Modules (SGMs) in one site (chassis) up or down.
+
+Usage: maestro_switchover [-ht] up|down chassis_id
+    up|down     Action to perform on the SGMs in the specified chassis.
+                'down' causes the SGMs to go to DOWN state,
+                'up' reverts them to the normal state.
+    chassis_id  Chassis ID (site ID) to target. Valid values are 1 or 2.
+    -h          Show this help message and exit.
+    -t          Test mode. Show what would be done, but do not perform any changes.
+Example: maestro_switchover -t up 1
+
+EOF
+}
+
+while getopts "ht" opt ; do
+    case $opt in
+        h) help ; exit 0 ;;
+        t) test_mode=1 ;;
+        *) help ; exit 1 ;;
+    esac
+done
+shift $((OPTIND -1))
+
+if [ "$#" -ne 2 ] ; then
+    help
+    exit 1
+fi
+
+action=$1
+chassis_id=$2
+
+if [ "$action" != up ] && [ "$action" != down ] ; then
+    help
+    exit 1
+fi
+if ! printf '%s\n' "$chassis_id" | grep -qE '^[12]$' ; then
+    help
+    exit 1
+fi
+
+sgm_ids=$(
+    asg resource |
+    awk -F'[[:space:]]*[|][[:space:]]*' '
+        ! in_sgm  && $2 ~ /^Member ID$/        { in_sgm = 1 ; next }
+        in_sgm    && $0 ~ /^\+-{20}/           { exit }
+        in_sgm    && $2 ~ /^[12]_[0-9]{1,2}$/  { print $2 }
+        ')
+
+if [ -z "$sgm_ids" ] ; then
+    echo "No SGMs found. Exiting."
+    exit 1
+elif [ "$(printf '%s\n' "$sgm_ids" | wc -l)" -lt 2 ] ; then
+    echo "Less than two SGMs found. Exiting."
+    exit 1
+fi
+
+get_sgm_ids() {
+    local chassis_id=$1
+    printf '%s\n' "$sgm_ids" | grep "^${chassis_id}_"
+}
+
+list_newlines_to_commas() {
+    printf '%s\n' "$1" | paste -sd,
+}
+
+printf 'SGM IDs found: %s\n' "$(list_newlines_to_commas "$sgm_ids")"
+
+sgm_ids_selected=$(get_sgm_ids "$chassis_id")
+
+if [ -z "$sgm_ids_selected" ] ; then
+    echo "No SGMs found for chassis ID $chassis_id. Exiting."
+    exit 1
+fi
+
+printf 'SGM IDs selected for action: %s\n' "$(list_newlines_to_commas "$sgm_ids_selected")"
+
+if [ -n "$test_mode" ] ; then
+    dry_prefix='echo '
+    printf '\nDry run mode. Would execute the following command:\n'
+else
+    dry_prefix=''
+    printf '\nRunning the g_clusterXL_admin command.\n'
+fi
+
+$dry_prefix g_clusterXL_admin -b "$(list_newlines_to_commas "$sgm_ids_selected")" "$action"
+# shellcheck disable=SC2320     # Check the last command.
+last_command_status=$?
+
+if [ "$last_command_status" -ne 0 ] ; then
+    echo "Failed to set state of the SGMs to $action."
+    exit 1
+fi
