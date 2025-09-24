@@ -13,6 +13,9 @@
 # g_clusterXL_admin -b chassis1|chassis2 up|down
 # but this form of the command is not documented.
 
+# Possible improvements:
+# - Add a check to ensure that the other chassis is up before putting one down.
+
 
 help () {
     cat << EOF
@@ -20,6 +23,7 @@ maestro_switchover
 
 Perform a controlled switchover of a Maestro dual-site cluster by switching
 all Security Gateway Modules (SGMs) in one site (chassis) up or down.
+The tool should also work on a Scalable Chassis platform with two chassis.
 
 Usage: maestro_switchover [-ht] up|down chassis_id
     up|down     Action to perform on the SGMs in the specified chassis.
