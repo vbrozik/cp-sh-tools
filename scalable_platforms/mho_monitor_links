@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# mho_monitor_links
+
+# Monitor the link status of the specified MHO network interfaces.
+# They are checked with pauses of the given duration. The results
+# are logged to a file with timestamps.
+
+
+links=(
+    17
+    18
+)
+
+sleep_duration=0.1
+
+hostname=$(hostname -s)
+file_time=$(date +%Y-%m-%dT%H-%M)
+
+log_file="${file_time}_${hostname}_mho_monitor_links.log"
+
+# --- end of parameters
+
+link_monitor () {
+    # Show Check Point MHO (or nVidia Spectrum switch) network interface status.
+    # $1 - MHO network interface number, e.g. 17
+    mlxlink -d /dev/mst/mt53100_pci_cr0 -p "$1"
+}
+
+time_stamp () {
+    date -Ins
+}
+
+while true ; do
+    for link in "${links[@]}" ; do
+        echo "=== $(time_stamp) $link ==="
+        link_monitor "$link"
+        echo
+    done >> "$log_file"
+    echo >> "$log_file"
+    sleep "$sleep_duration"
+done
