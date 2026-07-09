@@ -14,6 +14,9 @@
 # The script can be sourced with the --source option
 # to define the variables and pic_call_api function.
 
+# The default curl options disable certificate verification and and use ~/.netrc for authentication.
+# Instead of -n you can use -u username
+
 # parameters:
 
 # base url for the Prometheus API points line query, series, label...
@@ -43,7 +46,7 @@ if test "$1" = --source ; then
   return 0
 fi
 
-{ mkdir "$pic_dirname" && cd "$pic_dirname" ; } || { printf %s\\n 'Failed creating dir.' ; exit 1 ; }
+{ mkdir "$pic_dirname" && cd "$pic_dirname" ; } || { printf %s\\n 'Failed creating dir.' >&2 ; exit 1 ; }
 
 pic_call_api label/__name__/values > all_metrics.json
 pic_call_api series 'match[]={name!=""}' > all_labels.json
