@@ -1,0 +1,1 @@
+../../../vb-shell-tools/scripts/file_formats/rfc7468_to_single_line.sh
