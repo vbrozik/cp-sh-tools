@@ -42,6 +42,8 @@ Typical usage:
   sklnctl export --set \$(get_skyline_config.sh config_directory)
 Updating the existing configuration:
   sklnctl export --set \$(get_skyline_config.sh --rebase config_directory)
+  Note that rebase resets the configuration including the metrics.
+  So the metrics exclusions must be applied again after the rebase!
 
 config_directory: directory containing the following files:
   skyline_config_template.json - the main configuration file template

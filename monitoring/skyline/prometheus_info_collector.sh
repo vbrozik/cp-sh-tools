@@ -17,6 +17,16 @@
 # The default curl options disable certificate verification and and use ~/.netrc for authentication.
 # Instead of -n you can use -u username
 
+if false ; then     # Block with example code
+
+# Get metric + name label pairs (useful for Check Point Skyline metrics overview):
+jq -r '[.data[] | {__name__, name}] | unique | .[] | [ .__name__, .name ] | @csv ' all_labels.json |
+    column -t -s, | tr -d \" | less -MR
+# Note: Adopted for old version of jq present in Check Point Gaia OS.
+
+fi
+
+
 # parameters:
 
 # base url for the Prometheus API points line query, series, label...
@@ -49,6 +59,8 @@ fi
 { mkdir "$pic_dirname" && cd "$pic_dirname" ; } || { printf %s\\n 'Failed creating dir.' >&2 ; exit 1 ; }
 
 pic_call_api label/__name__/values > all_metrics.json
-pic_call_api series 'match[]={name!=""}' > all_labels.json
+# Note: The following query used to have a bug (contained name instead of __name__)
+# so it did not output metrics without the name label.
+pic_call_api series 'match[]={__name__!=""}' > all_labels.json
 pic_call_api query 'query={__name__!=""}' > all_labels_with_value.json
 pic_call_api query 'query={__name__!=""}[1h]' > all_labels_with_values_1h_unformatted.json

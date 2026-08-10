@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # skyline_install.sh
 
-CP_OTELCOL=/opt/CPotelcol
+CPOTELCOL_DIR=${CPOTELCOL_DIR-/opt/CPotelcol}
 
 
 show_help () {
@@ -48,7 +48,8 @@ if [ "$#" -ne 1 ] ; then
     exit 1
 fi
 
-config_directory=$1
+config_directory=${1%/}  # Remove trailing slash if present
+# config_directory=$(realpath --relative-to=. "$1")  # More sanitization
 
 script_dir="$(
     # shellcheck disable=SC2015
@@ -61,7 +62,7 @@ echo
 echo "=== Proxy exceptions ==="
 
 if [ -r "$config_directory/no_proxy" ] ; then
-    $dry_run_prefix cp -av "$config_directory/no_proxy" "$CP_OTELCOL" || {
+    $dry_run_prefix cp -av "$config_directory/no_proxy" "$CPOTELCOL_DIR" || {
         printf %s\\n 'Error: Failed to copy no_proxy file.' >&2
         exit 1
     }
@@ -76,6 +77,37 @@ $dry_run_prefix "$script_dir/skyline_set_metrics.sh" "$config_directory" || {
     printf %s\\n 'Error: Failed to set metrics exceptions.' >&2
     exit 1
 }
+
+echo
+echo "=== Set the environment label ==="
+
+environment_label=
+
+if [ -r "$config_directory/environment_label" ] ; then
+    environment_label=$(< "$config_directory/environment_label")
+
+# For cpprod_util attributes see
+# obsidian://open?vault=knowledge-public&file=2%20Areas%2FCheck%20Point%2FGaia%2FGaia_generic_tools
+
+elif [ "$(cpprod_util FwIsVSX)" = 1 ] && [ "$(cpprod_util FwIsHighAvail)" = 1 ] ; then
+    # This branch was tested on plain VSX and VSX in Maestro SG clusters (R81.20)
+    vsenv 0
+    environment_label=$(
+        sed -En 's/^#local\.vs[a-z]+ for .+ on VSX GW ([^ ]+) .+$/\1/p' $FWDIR/state/local/VSX/local.vsall |
+        uniq)
+    if [ "$(printf %s\\n "$environment_label" | wc -w)" -ne 1 ] ; then
+        printf %s\\n "Warning: Failed to get unique cluster name for VSX." >&2
+        environment_label=
+    fi
+fi
+
+if [ -z "$environment_label" ] ; then
+    printf %s\\n "Warning: Failed to get environment label. Leaving Default." >&2
+    printf %s\\n "You should set the environment label manually: sklnctl export --set-env <label>" >&2
+    printf %s\\n "To avoid this warning set the label in %s before running this script." "$config_directory/environment_label" >&2
+else
+    sklnctl export --set-env "$environment_label"
+fi
 
 echo
 echo "=== Skyline configuration ==="
