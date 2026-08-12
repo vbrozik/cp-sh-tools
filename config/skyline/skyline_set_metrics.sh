@@ -53,7 +53,7 @@ metrics_excluded_file="$tmp_dir/metrics_excluded.txt"
 
 
 if [ "$check_only" != 1 ] ; then
-    echo "=== Updating metrics configuration ==="
+    echo "--- Updating metrics configuration ---"
 
     mkdir -p "$tmp_dir" || {
         printf %s\\n 'Failed to create tmp dir.' >&2
@@ -85,7 +85,7 @@ if [ "$check_only" != 1 ] ; then
     echo
 fi
 
-echo "=== Checking metrics configuration ==="
+echo "--- Checking metrics configuration ---"
 
 if ! [ -r "$metrics_excluded_file" ] ; then
     printf %s\\n "Error: File with metrics excluded not found: %s" "$metrics_excluded_file" >&2
@@ -97,7 +97,7 @@ sklnctl otelcol metrics --is-default | grep -q ^true && {
     printf %s\\n 'Warning: metrics configuration is indicated as default (even after the exclusion).' >&2
 }
 
-echo "Difference between the excluded metrics and the current configuration:"
+echo "Difference between the excluded metrics and the current configuration (should be empty):"
 diff -U0 \
         <(sort "$metrics_excluded_file") \
         <(sklnctl otelcol metrics --show 2> /dev/null | sort) |

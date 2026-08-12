@@ -62,7 +62,7 @@ echo
 echo "=== Proxy exceptions ==="
 
 if [ -r "$config_directory/no_proxy" ] ; then
-    $dry_run_prefix cp -av "$config_directory/no_proxy" "$CPOTELCOL_DIR" || {
+    $dry_run_prefix cp -av "$config_directory/no_proxy" "${CPOTELCOL_DIR%/}/no_proxy" || {
         printf %s\\n 'Error: Failed to copy no_proxy file.' >&2
         exit 1
     }
@@ -79,7 +79,25 @@ $dry_run_prefix "$script_dir/skyline_set_metrics.sh" "$config_directory" || {
 }
 
 echo
+echo "=== Skyline configuration ==="
+
+$dry_run_prefix sklnctl export --set "$("$script_dir/skyline_get_config.sh" "$config_directory")" || {
+    printf %s\\n 'Error: Failed to set Skyline configuration.' >&2
+    exit 1
+}
+
+echo
 echo "=== Set the environment label ==="
+
+# Return true if all argument-less cpprod_util calls return 1, otherwise return false.
+cpprod_util_true () {
+    for arg in "$@" ; do
+        if ! cpprod_util "$arg" | grep -q '^1 *$' ; then
+            return 1
+        fi
+    done
+    return 0
+}
 
 environment_label=
 
@@ -89,9 +107,10 @@ if [ -r "$config_directory/environment_label" ] ; then
 # For cpprod_util attributes see
 # obsidian://open?vault=knowledge-public&file=2%20Areas%2FCheck%20Point%2FGaia%2FGaia_generic_tools
 
-elif [ "$(cpprod_util FwIsVSX)" = 1 ] && [ "$(cpprod_util FwIsHighAvail)" = 1 ] ; then
+# elif [ "$(cpprod_util FwIsVSX)" = 1 ] && [ "$(cpprod_util FwIsHighAvail)" = 1 ] ; then
+elif cpprod_util_true FwIsVSX FwIsHighAvail ; then
     # This branch was tested on plain VSX and VSX in Maestro SG clusters (R81.20)
-    vsenv 0
+    vsenv 0     # FIXME: vsenv: command not found
     environment_label=$(
         sed -En 's/^#local\.vs[a-z]+ for .+ on VSX GW ([^ ]+) .+$/\1/p' $FWDIR/state/local/VSX/local.vsall |
         uniq)
@@ -106,13 +125,5 @@ if [ -z "$environment_label" ] ; then
     printf %s\\n "You should set the environment label manually: sklnctl export --set-env <label>" >&2
     printf %s\\n "To avoid this warning set the label in %s before running this script." "$config_directory/environment_label" >&2
 else
-    sklnctl export --set-env "$environment_label"
+    $dry_run_prefix sklnctl export --set-env "$environment_label"
 fi
-
-echo
-echo "=== Skyline configuration ==="
-
-$dry_run_prefix sklnctl export --set "$("$script_dir/skyline_get_config.sh" "$config_directory")" || {
-    printf %s\\n 'Error: Failed to set Skyline configuration.' >&2
-    exit 1
-}
