@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Settings for the script migrate_segments.
+# This is a template without values.
+
+
+# shellcheck disable=SC2034     # Variables are used in a different script.
+
+vs_name=
+vsid=
+interfaces_file=
+aci_tenant=
+cluster_members_file=
+set_bd_routing_settings=
