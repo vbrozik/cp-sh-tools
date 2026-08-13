@@ -110,7 +110,6 @@ if [ -r "$config_directory/environment_label" ] ; then
 # For cpprod_util attributes see
 # obsidian://open?vault=knowledge-public&file=2%20Areas%2FCheck%20Point%2FGaia%2FGaia_generic_tools
 
-# elif [ "$(cpprod_util FwIsVSX)" = 1 ] && [ "$(cpprod_util FwIsHighAvail)" = 1 ] ; then
 elif cpprod_util_true FwIsVSX FwIsHighAvail ; then
     # This branch was tested on plain VSX and VSX in Maestro SG clusters (R81.20)
     fwdir0=${FWDIR%/CTX/*}
