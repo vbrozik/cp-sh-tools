@@ -1,3 +1,6 @@
 /tmp/
 /.specstory/
 /.vscode/tmstate.json
+
+# Ignore actual settings files, but not templates
+/vsx/set_bd_routing_wrp_settings
