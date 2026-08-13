@@ -50,6 +50,8 @@ help () {
 		                  cleanup:               Cleanup the VS after migration.
 		                                         - Delete the interfaces on the VS instances.
 		                                         - Enable antispoofing.
+		                  cleanup-delete-interfaces:
+		                                         - Just delete the interfaces on the VS instances.
 		+++EOF+++
 }
 
@@ -140,26 +142,30 @@ if [ "$action" = check ] ; then
 elif [ "$action" = prepare ] ; then
     modify_vs_interfaces "$vs_name" no_antispoofing ||
         err_exit "Failed to disable antispoofing on the VS."
-    printf "\nDone. Do not forget to install the policy."
+    printf "\nDone. Do not forget to install the policy.\n"
 elif [ "$action" = prepare-rollback ] ; then
     modify_vs_interfaces "$vs_name" antispoofing ||
         err_exit "Failed to enable antispoofing on the VS."
-    printf "\nDone. Do not forget to install the policy."
+    printf "\nDone. Do not forget to install the policy.\n"
 elif [ "$action" = migrate ] ; then
     move_to_aci
-    printf '\nDone. Do not forget to run "migrate_vlans %s cleanup" after testing.' \
+    printf '\nDone. Do not forget to run "migrate_vlans %s cleanup" after testing.\n' \
         "$settings_file"
 elif [ "$action" = migrate-rollback ] ; then
     move_from_aci
     modify_vs_interfaces "$vs_name" antispoofing ||
         err_exit "Failed to enable antispoofing on the VS."
-    printf '\nDone. Do not forget to install the policy.'
+    printf '\nDone. Do not forget to install the policy.\n'
 elif [ "$action" = cleanup ] ; then
     modify_vs_interfaces "$vs_name" delete_interfaces "$interfaces_file" ||
         err_exit "Failed to delete interfaces on the VS."
     modify_vs_interfaces "$vs_name" antispoofing ||
         err_exit "Failed to enable antispoofing on the VS."
-    printf '\nDone. Do not forget to install the policy.'
+    printf '\nDone. Do not forget to install the policy.\n'
+elif [ "$action" = cleanup-delete-interfaces ] ; then
+    modify_vs_interfaces "$vs_name" delete_interfaces "$interfaces_file" ||
+        err_exit "Failed to delete interfaces on the VS."
+    printf '\nDone. Do not forget to install the policy.\n'
 else
     echo "Unknown action $action"
     help
