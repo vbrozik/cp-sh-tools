@@ -132,3 +132,17 @@ sgm_ids_ch2=$(
 fwdir0=${FWDIR%/CTX/*}
 tail -vF "$fwdir0/log/fwk.elg" "$fwdir0/CTX/"CTX000*/log/fwk.elg |
     awk '/^==> / {file=$2; next} /cphwd_api_init.* failed/ {print file ":" $0}'
+
+# Check products and properties (cpprod_util)
+# Example: if cpprod_util_true FwIsVSX FwIsHighAvail ; then ...
+
+# Return true if all argument-less cpprod_util calls return 1, otherwise return false.
+cpprod_util_true () {
+    for arg in "$@" ; do
+        if ! cpprod_util "$arg" | grep -q '^1 *$' ; then
+            return 1
+        fi
+    done
+    return 0
+}
+
