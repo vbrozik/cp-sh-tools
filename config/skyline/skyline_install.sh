@@ -2,6 +2,9 @@
 
 # skyline_install.sh
 
+# cSpell:ignore vsall
+
+
 CPOTELCOL_DIR=${CPOTELCOL_DIR-/opt/CPotelcol}
 
 
@@ -110,10 +113,10 @@ if [ -r "$config_directory/environment_label" ] ; then
 # elif [ "$(cpprod_util FwIsVSX)" = 1 ] && [ "$(cpprod_util FwIsHighAvail)" = 1 ] ; then
 elif cpprod_util_true FwIsVSX FwIsHighAvail ; then
     # This branch was tested on plain VSX and VSX in Maestro SG clusters (R81.20)
-    vsenv 0     # FIXME: vsenv: command not found
+    fwdir0=${FWDIR%/CTX/*}
     environment_label=$(
-        sed -En 's/^#local\.vs[a-z]+ for .+ on VSX GW ([^ ]+) .+$/\1/p' $FWDIR/state/local/VSX/local.vsall |
-        uniq)
+        sed -En 's/^#local\.vs[a-z]+ for .+ on VSX GW ([^ ]+) .+$/\1/p' \
+            "$fwdir0/state/local/VSX/local.vsall" | uniq)
     if [ "$(printf %s\\n "$environment_label" | wc -w)" -ne 1 ] ; then
         printf %s\\n "Warning: Failed to get unique cluster name for VSX." >&2
         environment_label=
