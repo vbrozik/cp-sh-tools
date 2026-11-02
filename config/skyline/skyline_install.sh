@@ -12,13 +12,15 @@ show_help () {
     cat <<EOF
 Usage: skyline_install.sh [-h] [-d] <config_directory>
 
-Install Check Point Skyline configuration and exceptions.
+Install Check Point Skyline configuration and metrics exceptions.
 
 config_directory: directory containing the following files:
   skyline_config_template.json - the main configuration file template
   cert.pem - the Prometheus server certificate file in PEM format
   metrics_exclusions.txt - list of metrics to be excluded from collection
   no_proxy - optional file with proxy exceptions
+  environment_label - optional file with the environment label
+    (a value for the label 'environment' to be added to the exported metrics)
 
 Options:
   -h   Show this help message and exit.
@@ -51,8 +53,12 @@ if [ "$#" -ne 1 ] ; then
     exit 1
 fi
 
-config_directory=${1%/}  # Remove trailing slash if present
-# config_directory=$(realpath --relative-to=. "$1")  # More sanitization
+# Remove trailing slash if present
+config_directory=$(realpath --relative-to=. "$1") || {
+    printf 'Error: Failed to get realpath for config directory %s\n' "$1" >&2
+    exit 1
+}
+# config_directory=${1%/}   # Simplified version.
 
 script_dir="$(
     # shellcheck disable=SC2015
