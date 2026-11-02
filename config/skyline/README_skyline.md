@@ -14,10 +14,10 @@ the vb-shell-tools repository is in an adjacent directory to the directory of th
 
 ### Configuration files
 
-The configuration files have to be kept in a dedicated directory. Here it is `config_example`.
+The configuration files have to be kept in a dedicated directory. Here it is `skyline_config_example`.
 The files in the repository must keep their original names. Other files will be ignored.
 
-It is recommended to copy the `config_example` directory to a directory of your choice and make the required edits there.
+It is recommended to copy the `skyline_config_example` directory to a directory of your choice and make the required edits there.
 
 The directory must contain the following files which are filled by example content in this repository:
 
